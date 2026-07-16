@@ -3,6 +3,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Orizon.Distribuidora.Application\Orizon.Distribuidora.Application.csproj" />
     <ProjectReference Include="..\Orizon.Distribuidora.Infrastructure\Orizon.Distribuidora.Infrastructure.csproj" />
+    <ProjectReference Include="..\Orizon.UI\src\Orizon.UI\Orizon.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.29">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <PropertyGroup>
