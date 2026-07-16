@@ -1,0 +1,89 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Orizon.Distribuidora.Domain.Entities;
+using Orizon.Distribuidora.Domain.Interfaces;
+using Orizon.Distribuidora.Infrastructure.Identity;
+
+namespace Orizon.Distribuidora.Infrastructure.Data;
+
+public sealed class ApplicationDbContext
+    : IdentityDbContext<
+        ApplicationUser,
+        ApplicationRole,
+        Guid>
+{
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Company> Companies => Set<Company>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ApplicationDbContext).Assembly);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuditInformation();
+        ApplySoftDelete();
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        ApplyAuditInformation();
+        ApplySoftDelete();
+
+        return base.SaveChanges();
+    }
+
+    private void ApplyAuditInformation()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<IAuditableEntity>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAt = now;
+                continue;
+            }
+
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.UpdatedAt = now;
+
+                entry.Property(entity => entity.CreatedAt)
+                    .IsModified = false;
+
+                entry.Property(entity => entity.CreatedBy)
+                    .IsModified = false;
+            }
+        }
+    }
+
+    private void ApplySoftDelete()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<ISoftDeletableEntity>())
+        {
+            if (entry.State != EntityState.Deleted)
+            {
+                continue;
+            }
+
+            entry.State = EntityState.Modified;
+            entry.Entity.IsDeleted = true;
+            entry.Entity.DeletedAt = now;
+        }
+    }
+}
