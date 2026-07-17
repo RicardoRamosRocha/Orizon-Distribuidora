@@ -59,6 +59,13 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     public int LinhasIgnoradas { get; private set; }
     public Guid? UsuarioValidacaoId { get; private set; }
     public string? OpcoesValidacaoJson { get; private set; }
+    public int ProdutosInseridos { get; private set; }
+    public int ProdutosAtualizados { get; private set; }
+    public int SemAlteracao { get; private set; }
+    public int ItensBloqueados { get; private set; }
+    public int FalhasExecucao { get; private set; }
+    public Guid? UsuarioExecutorId { get; private set; }
+    public Guid? TokenExecucao { get; private set; }
 
     public IReadOnlyCollection<ImportacaoItem> Itens => itens.AsReadOnly();
 
@@ -102,6 +109,8 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     {
         TotalLinhas=total;LinhasValidas=validas;LinhasComErro=erros;LinhasComAviso=avisos;ProdutosNovos=novos;ProdutosExistentes=existentes;ProdutosAtualizaveis=atualizaveis;LinhasDuplicadas=duplicadas;LinhasIgnoradas=ignoradas;UsuarioValidacaoId=usuarioId;OpcoesValidacaoJson=opcoesJson;IniciadoEm??=DateTimeOffset.UtcNow;FinalizadoEm=DateTimeOffset.UtcNow;Status=podeImportar?StatusImportacao.ProntaParaImportar:StatusImportacao.ValidacaoComErros;
     }
+    public Guid IniciarExecucao(Guid? usuarioId){if(Status!=StatusImportacao.ProntaParaImportar)throw new InvalidOperationException("A importação não está pronta para execução.");Status=StatusImportacao.Importando;UsuarioExecutorId=usuarioId;TokenExecucao=Guid.NewGuid();IniciadoEm=DateTimeOffset.UtcNow;FinalizadoEm=null;return TokenExecucao.Value;}
+    public void FinalizarExecucao(int processados,int inseridos,int atualizados,int semAlteracao,int ignorados,int bloqueados,int falhas){TotalLinhas=processados;ProdutosInseridos=inseridos;ProdutosAtualizados=atualizados;SemAlteracao=semAlteracao;LinhasIgnoradas=ignorados;ItensBloqueados=bloqueados;FalhasExecucao=falhas;LinhasImportadas=inseridos+atualizados;FinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Concluida:(inseridos+atualizados)>0?StatusImportacao.ConcluidaParcialmente:StatusImportacao.Falhou;TokenExecucao=null;}
 
     private void SetArquivo(string nomeArquivo, long tamanhoArquivoBytes)
     {

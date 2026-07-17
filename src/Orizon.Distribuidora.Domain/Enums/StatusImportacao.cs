@@ -10,5 +10,5 @@ public enum StatusImportacao
     Validando = 6,
     ValidacaoConcluida = 7,
     ValidacaoComErros = 8,
-    ProntaParaImportar = 9
+    ProntaParaImportar = 9, Importando = 10, Concluida = 11, ConcluidaParcialmente = 12, Falhou = 13
 }

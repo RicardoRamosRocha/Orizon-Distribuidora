@@ -145,3 +145,12 @@ public sealed class ImportacaoValidacaoViewModel
     public string? Busca { get; set; }
     public ExecutarValidacaoImportacaoRequest Request { get; set; } = new();
 }
+public sealed class ImportacaoResultadoViewModel
+{
+    public ResultadoExecucaoImportacao Resultado { get; set; } = null!;
+    public IReadOnlyList<ResultadoExecucaoItem> Itens { get; set; }=[];
+    public int Pagina { get; set; }
+    public int TotalPaginas { get; set; }
+    public string? Filtro { get; set; }
+    public string? Busca { get; set; }
+}

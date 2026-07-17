@@ -41,6 +41,11 @@ public sealed class ImportacaoItem : CompanyOwnedAuditableEntity
     public string? DadosNormalizadosJson { get; private set; }
 
     public Guid? ProdutoId { get; private set; }
+    public OperacaoExecucaoImportacao OperacaoExecucao { get; private set; }
+    public DateTimeOffset? ExecutadoEm { get; private set; }
+    public string? MensagemExecucao { get; private set; }
+    public string? AlteracoesAplicadasJson { get; private set; }
+    public Guid? ChaveIdempotencia { get; private set; }
 
     public Product? Produto { get; private set; }
 
@@ -71,6 +76,8 @@ public sealed class ImportacaoItem : CompanyOwnedAuditableEntity
     {
         Status = StatusLinhaImportacao.Ignorada;
     }
+    public void PrepararExecucao(OperacaoExecucaoImportacao operacao){OperacaoExecucao=operacao;ChaveIdempotencia??=Guid.NewGuid();}
+    public void ConcluirExecucao(StatusLinhaImportacao status, Guid? produtoId, string? mensagem=null, string? alteracoesJson=null){if(status is not(StatusLinhaImportacao.Inserida or StatusLinhaImportacao.Atualizada or StatusLinhaImportacao.SemAlteracao or StatusLinhaImportacao.Ignorada or StatusLinhaImportacao.Bloqueada or StatusLinhaImportacao.Falhou))throw new ArgumentException("Status final inválido.",nameof(status));Status=status;ProdutoId=produtoId;MensagemExecucao=string.IsNullOrWhiteSpace(mensagem)?null:mensagem.Trim();AlteracoesAplicadasJson=string.IsNullOrWhiteSpace(alteracoesJson)?null:alteracoesJson;ExecutadoEm=DateTimeOffset.UtcNow;}
 
     private void SetNumeroLinha(int numeroLinha)
     {
