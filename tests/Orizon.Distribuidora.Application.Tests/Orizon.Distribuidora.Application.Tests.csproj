@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Orizon.Distribuidora.Application\Orizon.Distribuidora.Application.csproj" />
+    <ProjectReference Include="..\..\src\Orizon.Distribuidora.Infrastructure\Orizon.Distribuidora.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Orizon.Distribuidora.Web\Orizon.Distribuidora.Web.csproj" />
   </ItemGroup>
 

@@ -1,12 +1,16 @@
 using Orizon.Distribuidora.Infrastructure.DependencyInjection;
 using Orizon.Distribuidora.Infrastructure.Identity.Seed;
+using Orizon.Distribuidora.Web.Options;
 using Orizon.Distribuidora.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<ImportacaoOptions>(
+    builder.Configuration.GetSection(ImportacaoOptions.SectionName));
 
 builder.Services.AddScoped<ICurrentCompanyAccessor, CurrentCompanyAccessor>();
+builder.Services.AddScoped<ImportacaoUploadValidator>();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
