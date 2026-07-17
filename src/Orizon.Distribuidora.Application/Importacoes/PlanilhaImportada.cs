@@ -1,5 +1,13 @@
 namespace Orizon.Distribuidora.Application.Importacoes;
 
 public sealed record PlanilhaImportada(
-    IReadOnlyList<string> Cabecalhos,
-    IReadOnlyList<LinhaPlanilhaImportada> Linhas);
+    string? AbaSelecionada,
+    IReadOnlyList<AbaPlanilhaImportada> Abas)
+{
+    public AbaPlanilhaImportada? AbaAtual =>
+        Abas.FirstOrDefault(aba => aba.Nome == AbaSelecionada) ?? Abas.FirstOrDefault();
+
+    public IReadOnlyList<string> Cabecalhos => AbaAtual?.Cabecalhos ?? [];
+
+    public IReadOnlyList<LinhaPlanilhaImportada> Linhas => AbaAtual?.Amostra ?? [];
+}

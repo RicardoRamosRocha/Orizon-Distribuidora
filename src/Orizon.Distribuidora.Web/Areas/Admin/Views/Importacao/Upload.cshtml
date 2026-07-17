@@ -1,20 +1,181 @@
+@model ImportacaoUploadViewModel
+
 @{
     ViewData["Title"] = "Nova Importação";
     ViewData["ApplicationName"] = "Distribuidora";
+}
+
+@section Styles {
+    <style>
+        .import-upload-shell { display: grid; gap: 1.25rem; }
+        .import-dropzone {
+            display: grid;
+            gap: .75rem;
+            place-items: center;
+            min-height: 260px;
+            padding: 2rem;
+            border: 1px dashed var(--orizon-border-color, #cbd5e1);
+            border-radius: 8px;
+            background: var(--orizon-surface-muted, #f8fafc);
+            text-align: center;
+            transition: border-color .16s ease, background .16s ease;
+        }
+        .import-dropzone.is-dragover {
+            border-color: var(--orizon-primary, #2563eb);
+            background: rgba(37, 99, 235, .08);
+        }
+        .import-dropzone-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            background: var(--orizon-surface, #fff);
+            color: var(--orizon-primary, #2563eb);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+        }
+        .import-file-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+        .import-selected-file {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid var(--orizon-border-color, #e2e8f0);
+            border-radius: 8px;
+        }
+        .import-actions { display: flex; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; }
+        .import-muted { color: var(--orizon-text-muted, #64748b); }
+    </style>
 }
 
 <header class="orizon-page-header">
     <div>
         <h1 class="orizon-page-title">Nova Importação</h1>
         <p class="orizon-page-description">
-            Tela reservada para envio de planilhas Excel de produtos.
+            Envie uma planilha Excel para leitura inicial das abas, cabeçalhos e linhas.
         </p>
     </div>
 </header>
 
-<orizon-card title="Upload de planilha">
-    <orizon-alert variant="info"
-                  title="Funcionalidade em preparação">
-        O processamento de arquivos será implementado nas próximas etapas da Sprint 3.
+@if (TempData["Error"] is string error)
+{
+    <orizon-alert variant="danger" title="Não foi possível continuar">
+        @error
     </orizon-alert>
-</orizon-card>
+}
+
+<form asp-action="Upload"
+      method="post"
+      enctype="multipart/form-data"
+      class="import-upload-shell"
+      data-import-upload-form>
+    <orizon-card title="Upload de planilha">
+        <label class="import-dropzone" data-import-dropzone>
+            <span class="import-dropzone-icon" aria-hidden="true">
+                <orizon-icon name="upload-cloud" size="28" />
+            </span>
+            <strong>Arraste a planilha para esta área</strong>
+            <span class="import-muted">ou selecione um arquivo @Model.FormatosAceitos de até @Model.TamanhoMaximoArquivoMB MB</span>
+            <orizon-button type="button" variant="secondary" icon="folder-open" data-import-select>
+                Selecionar arquivo
+            </orizon-button>
+            <input class="import-file-input"
+                   type="file"
+                   name="arquivo"
+                   accept=".xlsx"
+                   data-import-file />
+        </label>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div style="margin-top: 1rem;">
+                <orizon-alert variant="danger" title="Arquivo inválido">
+                    @Html.ValidationMessage("arquivo")
+                </orizon-alert>
+            </div>
+        }
+    </orizon-card>
+
+    <div class="import-selected-file" data-import-selected hidden>
+        <div>
+            <strong data-import-file-name>Nenhum arquivo selecionado</strong>
+            <div class="import-muted" data-import-file-size></div>
+        </div>
+        <span class="import-muted">Formato aceito: @Model.FormatosAceitos</span>
+    </div>
+
+    <div class="import-actions">
+        <orizon-button href="@Url.Action("Index")"
+                       variant="secondary"
+                       icon="x">
+            Cancelar
+        </orizon-button>
+        <orizon-button type="submit"
+                       variant="primary"
+                       icon="arrow-right">
+            Continuar
+        </orizon-button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.querySelector('[data-import-upload-form]');
+            if (!form) return;
+
+            const dropzone = form.querySelector('[data-import-dropzone]');
+            const input = form.querySelector('[data-import-file]');
+            const selectButton = form.querySelector('[data-import-select]');
+            const selected = form.querySelector('[data-import-selected]');
+            const fileName = form.querySelector('[data-import-file-name]');
+            const fileSize = form.querySelector('[data-import-file-size]');
+
+            const formatSize = (bytes) => {
+                if (!bytes) return '0 KB';
+                if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+                return `${(bytes / 1024).toFixed(2)} KB`;
+            };
+
+            const updateSelected = () => {
+                const file = input.files && input.files[0];
+                if (!file) return;
+                fileName.textContent = file.name;
+                fileSize.textContent = formatSize(file.size);
+                selected.hidden = false;
+            };
+
+            selectButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                input.click();
+            });
+
+            input.addEventListener('change', updateSelected);
+
+            ['dragenter', 'dragover'].forEach((eventName) => {
+                dropzone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    dropzone.classList.add('is-dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach((eventName) => {
+                dropzone.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    dropzone.classList.remove('is-dragover');
+                });
+            });
+
+            dropzone.addEventListener('drop', (event) => {
+                const file = event.dataTransfer.files && event.dataTransfer.files[0];
+                if (!file) return;
+
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                input.files = transfer.files;
+                updateSelected();
+            });
+        })();
+    </script>
+}

@@ -16,8 +16,9 @@ public sealed class ImportacaoProdutosService : IImportacaoProdutosService
     public Task<ImportacaoHistorico> PrepararImportacaoAsync(
         Guid companyId,
         ArquivoImportacaoExcel arquivo,
+        Guid? usuarioId = null,
         CancellationToken cancellationToken = default)
     {
-        return historicoImportacaoService.RegistrarAsync(companyId, arquivo, cancellationToken);
+        return historicoImportacaoService.RegistrarAsync(companyId, arquivo, usuarioId, cancellationToken);
     }
 }

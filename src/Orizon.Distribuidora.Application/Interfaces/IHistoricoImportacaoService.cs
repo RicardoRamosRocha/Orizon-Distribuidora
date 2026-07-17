@@ -8,9 +8,15 @@ public interface IHistoricoImportacaoService
     Task<ImportacaoHistorico> RegistrarAsync(
         Guid companyId,
         ArquivoImportacaoExcel arquivo,
+        Guid? usuarioId = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ImportacaoHistorico>> ListarAsync(
         Guid companyId,
+        CancellationToken cancellationToken = default);
+
+    Task<ImportacaoHistorico?> ObterAsync(
+        Guid companyId,
+        Guid importacaoId,
         CancellationToken cancellationToken = default);
 }

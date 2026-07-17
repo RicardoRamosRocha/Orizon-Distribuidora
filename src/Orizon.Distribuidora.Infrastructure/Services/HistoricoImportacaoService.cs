@@ -18,6 +18,7 @@ public sealed class HistoricoImportacaoService : IHistoricoImportacaoService
     public async Task<ImportacaoHistorico> RegistrarAsync(
         Guid companyId,
         ArquivoImportacaoExcel arquivo,
+        Guid? usuarioId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arquivo);
@@ -28,6 +29,7 @@ public sealed class HistoricoImportacaoService : IHistoricoImportacaoService
             arquivo.TipoArquivo,
             arquivo.TamanhoBytes);
 
+        historico.CreatedBy = usuarioId;
         dbContext.ImportacoesHistorico.Add(historico);
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -43,5 +45,17 @@ public sealed class HistoricoImportacaoService : IHistoricoImportacaoService
             .Where(importacao => importacao.CompanyId == companyId)
             .OrderByDescending(importacao => importacao.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ImportacaoHistorico?> ObterAsync(
+        Guid companyId,
+        Guid importacaoId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.ImportacoesHistorico
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                importacao => importacao.CompanyId == companyId && importacao.Id == importacaoId,
+                cancellationToken);
     }
 }

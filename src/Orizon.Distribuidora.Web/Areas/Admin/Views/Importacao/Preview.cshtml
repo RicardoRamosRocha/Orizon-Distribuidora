@@ -1,6 +1,23 @@
+@model ImportacaoPreviewViewModel
+
 @{
     ViewData["Title"] = "Prévia da Importação";
     ViewData["ApplicationName"] = "Distribuidora";
+}
+
+@section Styles {
+    <style>
+        .import-preview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .import-preview-field { display: grid; gap: .25rem; padding: 1rem; border: 1px solid var(--orizon-border-color, #e2e8f0); border-radius: 8px; }
+        .import-preview-field span { color: var(--orizon-text-muted, #64748b); font-size: .875rem; }
+        .import-header-list { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+        .import-header-pill { padding: .4rem .65rem; border-radius: 999px; background: var(--orizon-surface-muted, #f8fafc); border: 1px solid var(--orizon-border-color, #e2e8f0); }
+        .import-preview-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .import-sheet-form { display: flex; gap: .75rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+        .import-sheet-form label { display: grid; gap: .35rem; min-width: 280px; }
+        .import-sheet-form select { min-height: 40px; border: 1px solid var(--orizon-border-color, #cbd5e1); border-radius: 8px; padding: .45rem .7rem; }
+        @@media (max-width: 900px) { .import-preview-grid { grid-template-columns: 1fr; } }
+    </style>
 }
 
 <header class="orizon-page-header">
@@ -13,7 +30,93 @@
 </header>
 
 <orizon-card title="Prévia">
-    <orizon-empty-state icon="table"
-                        title="Nenhuma planilha carregada"
-                        description="A prévia será exibida quando o upload estiver disponível." />
+    <div class="import-preview-grid">
+        <div class="import-preview-field">
+            <span>Arquivo</span>
+            <strong>@Model.NomeArquivo</strong>
+            <small>@Model.TamanhoFormatado</small>
+        </div>
+        <div class="import-preview-field">
+            <span>Planilha</span>
+            <strong>@Model.AbaSelecionada</strong>
+            <small>@Model.Abas.Count aba(s) encontrada(s)</small>
+        </div>
+        <div class="import-preview-field">
+            <span>Linhas encontradas</span>
+            <strong>@Model.QuantidadeLinhas</strong>
+            <small>@Model.Cabecalhos.Count coluna(s)</small>
+        </div>
+    </div>
+
+    @if (Model.PossuiMultiplasAbas)
+    {
+        <form method="get" asp-action="Preview" class="import-sheet-form">
+            <input type="hidden" name="id" value="@Model.ImportacaoId" />
+            <input type="hidden" name="token" value="@Model.TokenArquivo" />
+            <label>
+                <span>Planilha para importação</span>
+                <select name="aba">
+                    @foreach (var aba in Model.Abas)
+                    {
+                        <option value="@aba.Nome" selected="@(aba.Nome == Model.AbaSelecionada)">
+                            @aba.Nome (@aba.QuantidadeLinhas linhas, @aba.QuantidadeColunas colunas)
+                        </option>
+                    }
+                </select>
+            </label>
+            <orizon-button type="submit" variant="secondary" icon="refresh-cw">
+                Atualizar prévia
+            </orizon-button>
+        </form>
+    }
+
+    <h2 class="orizon-section-title">Colunas encontradas</h2>
+    <div class="import-header-list">
+        @foreach (var header in Model.Cabecalhos)
+        {
+            <span class="import-header-pill">@header</span>
+        }
+    </div>
+
+    @if (Model.Amostra.Count > 0)
+    {
+        <div style="margin-top: 1.5rem; overflow-x: auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Linha</th>
+                        @foreach (var header in Model.Cabecalhos.Take(8))
+                        {
+                            <th>@header</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Amostra)
+                    {
+                        <tr>
+                            <td>@row.NumeroLinha</td>
+                            @foreach (var header in Model.Cabecalhos.Take(8))
+                            {
+                                <td>@(row.Valores.TryGetValue(header, out var value) ? value : null)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="import-preview-actions">
+        <orizon-button href="@Url.Action("Upload")"
+                       variant="secondary"
+                       icon="arrow-left">
+            Cancelar
+        </orizon-button>
+        <orizon-button href="@Url.Action("Resultado")"
+                       variant="primary"
+                       icon="arrow-right">
+            Continuar para mapeamento
+        </orizon-button>
+    </div>
 </orizon-card>

@@ -8,5 +8,6 @@ public interface IImportacaoProdutosService
     Task<ImportacaoHistorico> PrepararImportacaoAsync(
         Guid companyId,
         ArquivoImportacaoExcel arquivo,
+        Guid? usuarioId = null,
         CancellationToken cancellationToken = default);
 }

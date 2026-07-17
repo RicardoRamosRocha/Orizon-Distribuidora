@@ -6,5 +6,7 @@ public interface ILeitorExcelService
 {
     Task<PlanilhaImportada> LerAsync(
         ArquivoImportacaoExcel arquivo,
+        string? abaSelecionada = null,
+        int tamanhoAmostra = 10,
         CancellationToken cancellationToken = default);
 }
