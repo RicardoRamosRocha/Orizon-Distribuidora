@@ -1,0 +1,205 @@
+@model BasicRegistrationIndexViewModel
+
+@{
+    ViewData["Title"] = Model.Module.Title;
+    ViewData["ApplicationName"] = "Distribuidora";
+    var previousDisabled = Model.Page <= 1;
+    var nextDisabled = Model.Page >= Model.TotalPages;
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">@Model.Module.Title</h1>
+        <p class="orizon-page-description">Cadastro e manutenção de @Model.Module.Title.ToLowerInvariant().</p>
+    </div>
+
+    <orizon-button href="@Url.Action("Create", new { moduleKey = Model.Module.Key })"
+                   variant="primary"
+                   icon="plus">
+        Novo
+    </orizon-button>
+</header>
+
+@if (TempData["Success"] is string successMessage)
+{
+    <orizon-alert variant="success" title="Operação concluída">
+        @successMessage
+    </orizon-alert>
+}
+
+<orizon-card>
+    <form method="get" class="orizon-form-grid">
+        <orizon-input label="Pesquisa"
+                      name="search"
+                      value="@Model.Search"
+                      placeholder="Nome, código, documento ou e-mail" />
+
+        <div class="orizon-field">
+            <label class="orizon-label" for="isActive">Situação</label>
+            <select class="orizon-select" id="isActive" name="isActive">
+                <option value="">Todas</option>
+                <option value="true" selected="@(Model.IsActive == true)">Ativos</option>
+                <option value="false" selected="@(Model.IsActive == false)">Inativos</option>
+            </select>
+        </div>
+
+        @if (Model.Module.HasTypeFilter)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" for="type">Tipo</label>
+                <select class="orizon-select" id="type" name="type">
+                    <option value="">Todos</option>
+                    <option value="@((int)PersonType.Individual)" selected="@(Model.Type == (int)PersonType.Individual)">Pessoa física</option>
+                    <option value="@((int)PersonType.Company)" selected="@(Model.Type == (int)PersonType.Company)">Pessoa jurídica</option>
+                </select>
+            </div>
+        }
+
+        @if (Model.Module.HasCategory)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" for="categoryId">Categoria</label>
+                <select class="orizon-select" id="categoryId" name="categoryId" asp-items="Model.Categories">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+        }
+
+        @if (Model.Module.HasWarehouse)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" for="warehouseId">Depósito</label>
+                <select class="orizon-select" id="warehouseId" name="warehouseId" asp-items="Model.Warehouses">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+        }
+
+        @if (Model.Module.HasSystemFilter)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" for="isSystem">Sistema</label>
+                <select class="orizon-select" id="isSystem" name="isSystem">
+                    <option value="">Todos</option>
+                    <option value="true" selected="@(Model.IsSystem == true)">Sistema</option>
+                    <option value="false" selected="@(Model.IsSystem == false)">Customizados</option>
+                </select>
+            </div>
+        }
+
+        <div class="orizon-field">
+            <label class="orizon-label">&nbsp;</label>
+            <orizon-button type="submit" variant="secondary" icon="search">Filtrar</orizon-button>
+        </div>
+    </form>
+</orizon-card>
+
+<orizon-card>
+    <div class="orizon-table-wrapper">
+        <table class="orizon-table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Código</th>
+                    <th>Complemento</th>
+                    <th>Situação</th>
+                    <th>Criado em</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6">
+                            <orizon-empty-state title="Nenhum registro encontrado">
+                                Ajuste os filtros ou crie um novo cadastro.
+                            </orizon-empty-state>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Name</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.RelatedName))
+                                {
+                                    <span class="orizon-text-muted"> · @item.RelatedName</span>
+                                }
+                            </td>
+                            <td>@(item.Code ?? item.Document ?? "-")</td>
+                            <td>@(item.Secondary ?? "-")</td>
+                            <td>
+                                <orizon-badge variant="@(item.IsActive ? "success" : "neutral")">
+                                    @(item.IsActive ? "Ativo" : "Inativo")
+                                </orizon-badge>
+                                @if (item.IsSystem)
+                                {
+                                    <orizon-badge variant="info">Sistema</orizon-badge>
+                                }
+                            </td>
+                            <td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <orizon-button href="@Url.Action("Edit", new { moduleKey = Model.Module.Key, id = item.Id })"
+                                               variant="secondary"
+                                               size="sm"
+                                               icon="edit">
+                                    Editar
+                                </orizon-button>
+
+                                <form method="post"
+                                      asp-action="@(item.IsActive ? "Deactivate" : "Activate")"
+                                      asp-route-moduleKey="@Model.Module.Key"
+                                      asp-route-id="@item.Id"
+                                      class="orizon-inline-form">
+                                    @Html.AntiForgeryToken()
+                                    <orizon-button type="submit"
+                                                   variant="secondary"
+                                                   size="sm"
+                                                   icon="power">
+                                        @(item.IsActive ? "Desativar" : "Ativar")
+                                    </orizon-button>
+                                </form>
+
+                                <form method="post"
+                                      asp-action="Delete"
+                                      asp-route-moduleKey="@Model.Module.Key"
+                                      asp-route-id="@item.Id"
+                                      class="orizon-inline-form"
+                                      onsubmit="return confirm('Confirmar exclusão lógica deste cadastro?');">
+                                    @Html.AntiForgeryToken()
+                                    <orizon-button type="submit"
+                                                   variant="danger"
+                                                   size="sm"
+                                                   icon="trash">
+                                        Excluir
+                                    </orizon-button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</orizon-card>
+
+<nav class="orizon-pagination" aria-label="Paginação">
+    <span>Total: @Model.TotalItems</span>
+    <orizon-button href="@Url.Action("Index", new { moduleKey = Model.Module.Key, search = Model.Search, isActive = Model.IsActive, type = Model.Type, categoryId = Model.CategoryId, warehouseId = Model.WarehouseId, isSystem = Model.IsSystem, page = Model.Page - 1 })"
+                   variant="secondary"
+                   size="sm"
+                   disabled="@previousDisabled">
+        Anterior
+    </orizon-button>
+    <span>Página @Model.Page de @Model.TotalPages</span>
+    <orizon-button href="@Url.Action("Index", new { moduleKey = Model.Module.Key, search = Model.Search, isActive = Model.IsActive, type = Model.Type, categoryId = Model.CategoryId, warehouseId = Model.WarehouseId, isSystem = Model.IsSystem, page = Model.Page + 1 })"
+                   variant="secondary"
+                   size="sm"
+                   disabled="@nextDisabled">
+        Próxima
+    </orizon-button>
+</nav>
