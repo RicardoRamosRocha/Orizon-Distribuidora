@@ -94,6 +94,7 @@ public sealed class AuthenticationFlowTests
     {
         AssertRequiresAdministratorRole(typeof(DashboardController));
         AssertRequiresAdministratorRole(typeof(BasicRegistrationsController));
+        AssertRequiresAdministratorRole(typeof(ProductsController));
     }
 
     private static void AssertRequiresAdministratorRole(Type controllerType)
