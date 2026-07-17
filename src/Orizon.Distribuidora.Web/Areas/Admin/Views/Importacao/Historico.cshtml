@@ -1,0 +1,52 @@
+@model IReadOnlyList<ImportacaoHistoricoResumoViewModel>
+
+@{
+    ViewData["Title"] = "Histórico de Importações";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">Histórico de Importações</h1>
+        <p class="orizon-page-description">
+            Rastreio das importações de produtos realizadas pela empresa.
+        </p>
+    </div>
+</header>
+
+<orizon-card title="Importações registradas">
+    @if (Model.Count == 0)
+    {
+        <orizon-empty-state icon="history"
+                            title="Nenhum histórico encontrado"
+                            description="Os registros serão criados quando o processamento for habilitado." />
+    }
+    else
+    {
+        <orizon-table>
+            <thead>
+                <tr>
+                    <th>Arquivo</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Importadas</th>
+                    <th>Erros</th>
+                    <th>Criado em</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.NomeArquivo</td>
+                        <td>@item.Status</td>
+                        <td>@item.TotalLinhas</td>
+                        <td>@item.LinhasImportadas</td>
+                        <td>@item.LinhasComErro</td>
+                        <td>@item.CriadoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </orizon-table>
+    }
+</orizon-card>

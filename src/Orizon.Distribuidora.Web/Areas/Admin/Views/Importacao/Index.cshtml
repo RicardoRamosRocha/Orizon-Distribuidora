@@ -1,0 +1,97 @@
+@model ImportacaoIndexViewModel
+
+@{
+    ViewData["Title"] = "Importação de Produtos";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">Importação de Produtos</h1>
+        <p class="orizon-page-description">
+            Estrutura inicial para importação segura de planilhas Excel do catálogo.
+        </p>
+    </div>
+
+    <orizon-button href="@Url.Action("Upload")"
+                   variant="primary"
+                   icon="upload-cloud">
+        Nova importação
+    </orizon-button>
+</header>
+
+<section class="orizon-dashboard-grid" aria-label="Indicadores de importação">
+    <orizon-card>
+        <div class="orizon-stat-card">
+            <span class="orizon-stat-label">Importações</span>
+            <strong class="orizon-stat-value">@Model.TotalImportacoes</strong>
+            <span class="orizon-stat-description">Históricos registrados</span>
+        </div>
+    </orizon-card>
+
+    <orizon-card>
+        <div class="orizon-stat-card">
+            <span class="orizon-stat-label">Com erro</span>
+            <strong class="orizon-stat-value">@Model.ImportacoesComErro</strong>
+            <span class="orizon-stat-description">Processamentos com inconsistências</span>
+        </div>
+    </orizon-card>
+
+    <orizon-card>
+        <div class="orizon-stat-card">
+            <span class="orizon-stat-label">Linhas importadas</span>
+            <strong class="orizon-stat-value">@Model.LinhasImportadas</strong>
+            <span class="orizon-stat-description">Produtos preparados para rastreio</span>
+        </div>
+    </orizon-card>
+</section>
+
+<section style="margin-top: 1.5rem;">
+    <orizon-card title="Últimas importações">
+        @if (Model.UltimasImportacoes.Count == 0)
+        {
+            <orizon-empty-state icon="file-spreadsheet"
+                                title="Nenhuma importação registrada"
+                                description="O upload será habilitado na próxima etapa do módulo." />
+        }
+        else
+        {
+            <orizon-table>
+                <thead>
+                    <tr>
+                        <th>Arquivo</th>
+                        <th>Status</th>
+                        <th>Linhas</th>
+                        <th>Erros</th>
+                        <th>Criado em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.UltimasImportacoes)
+                    {
+                        <tr>
+                            <td>@item.NomeArquivo</td>
+                            <td>@StatusLabel(item.Status)</td>
+                            <td>@item.TotalLinhas</td>
+                            <td>@item.LinhasComErro</td>
+                            <td>@item.CriadoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </orizon-table>
+        }
+    </orizon-card>
+</section>
+
+@functions {
+    private static string StatusLabel(StatusImportacao status) =>
+        status switch
+        {
+            StatusImportacao.AguardandoProcessamento => "Aguardando",
+            StatusImportacao.EmProcessamento => "Em processamento",
+            StatusImportacao.ProcessadaComSucesso => "Processada",
+            StatusImportacao.ProcessadaComErros => "Com erros",
+            StatusImportacao.Cancelada => "Cancelada",
+            _ => status.ToString()
+        };
+}

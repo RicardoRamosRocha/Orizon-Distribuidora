@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Orizon.Distribuidora.Application.Interfaces;
 using Orizon.Distribuidora.Infrastructure.Data;
+using Orizon.Distribuidora.Infrastructure.Excel;
 using Orizon.Distribuidora.Infrastructure.Identity;
+using Orizon.Distribuidora.Infrastructure.Services;
 
 namespace Orizon.Distribuidora.Infrastructure.DependencyInjection;
 
@@ -64,6 +67,12 @@ public static class InfrastructureServiceCollectionExtensions
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
         });
+
+        services.AddScoped<IImportacaoProdutosService, ImportacaoProdutosService>();
+        services.AddScoped<ILeitorExcelService, LeitorExcelService>();
+        services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
+        services.AddScoped<IMapeadorColunasService, MapeadorColunasService>();
+        services.AddScoped<IHistoricoImportacaoService, HistoricoImportacaoService>();
 
         return services;
     }

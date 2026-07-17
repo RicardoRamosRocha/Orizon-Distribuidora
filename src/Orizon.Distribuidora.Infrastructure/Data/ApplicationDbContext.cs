@@ -44,6 +44,14 @@ public sealed class ApplicationDbContext
 
     public DbSet<ProductChangeHistory> ProductChangeHistories => Set<ProductChangeHistory>();
 
+    public DbSet<ImportacaoHistorico> ImportacoesHistorico => Set<ImportacaoHistorico>();
+
+    public DbSet<ImportacaoItem> ImportacaoItens => Set<ImportacaoItem>();
+
+    public DbSet<ImportacaoErro> ImportacaoErros => Set<ImportacaoErro>();
+
+    public DbSet<ModeloImportacao> ModelosImportacao => Set<ModeloImportacao>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
