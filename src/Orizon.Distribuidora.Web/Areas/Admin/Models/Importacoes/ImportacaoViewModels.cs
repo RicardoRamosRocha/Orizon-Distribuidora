@@ -114,3 +114,34 @@ public sealed class SalvarModeloImportacaoRequest
     public List<string> Cabecalhos { get; set; } = [];
     public List<Dictionary<string, string?>> Amostra { get; set; } = [];
 }
+
+public sealed class ExecutarValidacaoImportacaoRequest
+{
+    public Guid ImportacaoId { get; set; }
+    public string TokenArquivo { get; set; } = string.Empty;
+    public string? AbaSelecionada { get; set; }
+    public string MapeamentoJson { get; set; } = "{}";
+    public bool InserirNovos { get; set; } = true;
+    public bool AtualizarExistentes { get; set; } = true;
+    public bool IgnorarVaziosAtualizacao { get; set; } = true;
+    public bool PermitirImportacaoParcial { get; set; } = true;
+    public bool BloquearComQualquerErro { get; set; }
+    public int Pagina { get; set; } = 1;
+    public string? Filtro { get; set; }
+    public string? Busca { get; set; }
+    public bool PersistirResultado { get; set; } = true;
+}
+
+public sealed class ImportacaoValidacaoViewModel
+{
+    public Guid ImportacaoId { get; set; }
+    public string NomeArquivo { get; set; } = string.Empty;
+    public string? AbaSelecionada { get; set; }
+    public ResultadoValidacaoImportacao Resultado { get; set; } = ResultadoValidacaoImportacao.Sucesso;
+    public IReadOnlyList<ResultadoValidacaoLinha> Linhas { get; set; } = [];
+    public int Pagina { get; set; }
+    public int TotalPaginas { get; set; }
+    public string? Filtro { get; set; }
+    public string? Busca { get; set; }
+    public ExecutarValidacaoImportacaoRequest Request { get; set; } = new();
+}

@@ -19,4 +19,5 @@ public interface IHistoricoImportacaoService
         Guid companyId,
         Guid importacaoId,
         CancellationToken cancellationToken = default);
+    Task SalvarValidacaoAsync(Guid companyId, Guid importacaoId, Guid? usuarioId, ResultadoValidacaoImportacao resultado, OpcoesValidacaoImportacao opcoes, CancellationToken cancellationToken = default);
 }

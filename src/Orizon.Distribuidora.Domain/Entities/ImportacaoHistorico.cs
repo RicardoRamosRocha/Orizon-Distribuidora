@@ -51,6 +51,14 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     public DateTimeOffset? FinalizadoEm { get; private set; }
 
     public string? Observacoes { get; private set; }
+    public int LinhasComAviso { get; private set; }
+    public int ProdutosNovos { get; private set; }
+    public int ProdutosExistentes { get; private set; }
+    public int ProdutosAtualizaveis { get; private set; }
+    public int LinhasDuplicadas { get; private set; }
+    public int LinhasIgnoradas { get; private set; }
+    public Guid? UsuarioValidacaoId { get; private set; }
+    public string? OpcoesValidacaoJson { get; private set; }
 
     public IReadOnlyCollection<ImportacaoItem> Itens => itens.AsReadOnly();
 
@@ -88,6 +96,11 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
         Status = StatusImportacao.Cancelada;
         Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim();
         FinalizadoEm = DateTimeOffset.UtcNow;
+    }
+
+    public void RegistrarValidacao(int total, int validas, int erros, int avisos, int novos, int existentes, int atualizaveis, int duplicadas, int ignoradas, bool podeImportar, Guid? usuarioId, string opcoesJson)
+    {
+        TotalLinhas=total;LinhasValidas=validas;LinhasComErro=erros;LinhasComAviso=avisos;ProdutosNovos=novos;ProdutosExistentes=existentes;ProdutosAtualizaveis=atualizaveis;LinhasDuplicadas=duplicadas;LinhasIgnoradas=ignoradas;UsuarioValidacaoId=usuarioId;OpcoesValidacaoJson=opcoesJson;IniciadoEm??=DateTimeOffset.UtcNow;FinalizadoEm=DateTimeOffset.UtcNow;Status=podeImportar?StatusImportacao.ProntaParaImportar:StatusImportacao.ValidacaoComErros;
     }
 
     private void SetArquivo(string nomeArquivo, long tamanhoArquivoBytes)

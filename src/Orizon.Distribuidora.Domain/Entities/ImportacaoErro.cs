@@ -1,4 +1,5 @@
 using Orizon.Distribuidora.Domain.Common;
+using Orizon.Distribuidora.Domain.Enums;
 
 namespace Orizon.Distribuidora.Domain.Entities;
 
@@ -27,6 +28,9 @@ public sealed class ImportacaoErro : CompanyOwnedAuditableEntity
         ValorOriginal = Normalize(valorOriginal);
         SetMensagem(mensagem);
     }
+    public string Codigo { get; private set; } = "IMP_VALIDACAO";
+    public SeveridadeValidacao Severidade { get; private set; } = SeveridadeValidacao.Erro;
+    public void DefinirClassificacao(string codigo, SeveridadeValidacao severidade){Codigo=string.IsNullOrWhiteSpace(codigo)?"IMP_VALIDACAO":codigo.Trim();Severidade=severidade;}
 
     public Guid ImportacaoHistoricoId { get; private set; }
 

@@ -9,6 +9,7 @@ using Orizon.Distribuidora.Web.Areas.Admin.Models.Importacoes;
 using Orizon.Distribuidora.Web.Options;
 using Orizon.Distribuidora.Web.Services;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Orizon.Distribuidora.Web.Areas.Admin.Controllers;
 
@@ -24,6 +25,8 @@ public sealed class ImportacaoController : Controller
     private readonly ImportacaoOptions options;
     private readonly IMapeadorColunasService mapeadorColunasService;
     private readonly IModeloImportacaoService modeloImportacaoService;
+    private readonly IValidadorDadosImportacaoService validadorDadosImportacaoService;
+    private readonly IContextoValidacaoImportacaoService contextoValidacaoImportacaoService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
@@ -32,7 +35,9 @@ public sealed class ImportacaoController : Controller
         ImportacaoUploadValidator uploadValidator,
         IOptions<ImportacaoOptions> options,
         IMapeadorColunasService mapeadorColunasService,
-        IModeloImportacaoService modeloImportacaoService)
+        IModeloImportacaoService modeloImportacaoService,
+        IValidadorDadosImportacaoService validadorDadosImportacaoService,
+        IContextoValidacaoImportacaoService contextoValidacaoImportacaoService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
@@ -41,6 +46,8 @@ public sealed class ImportacaoController : Controller
         this.options = options.Value;
         this.mapeadorColunasService = mapeadorColunasService;
         this.modeloImportacaoService = modeloImportacaoService;
+        this.validadorDadosImportacaoService = validadorDadosImportacaoService;
+        this.contextoValidacaoImportacaoService = contextoValidacaoImportacaoService;
     }
 
     [HttpGet("")]
@@ -229,6 +236,31 @@ public sealed class ImportacaoController : Controller
     [HttpPost("ValidarMapeamento")]
     [ValidateAntiForgeryToken]
     public IActionResult ValidarMapeamento([FromBody] SalvarModeloImportacaoRequest request) => Json(ValidadorMapeamentoColunas.Validar(request.Mapeamentos, request.Cabecalhos, request.Amostra));
+
+    [HttpPost("Validacao")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Validacao(ExecutarValidacaoImportacaoRequest request, CancellationToken cancellationToken)
+    {
+        if (!IsValidToken(request.TokenArquivo)) return RedirectToAction(nameof(Upload));
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        var historico = await historicoImportacaoService.ObterAsync(companyId, request.ImportacaoId, cancellationToken);
+        var path = GetTemporaryPath(request.TokenArquivo);
+        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
+        Dictionary<string,string>? mappings; try { mappings=JsonSerializer.Deserialize<Dictionary<string,string>>(request.MapeamentoJson); } catch(JsonException) { return BadRequest(); }
+        if(mappings is null) return BadRequest();
+        await using var input=System.IO.File.OpenRead(path);
+        var planilha=await leitorExcelService.LerAsync(new(input,historico.NomeArquivo,historico.TamanhoArquivoBytes),request.AbaSelecionada,10_000,cancellationToken);
+        var aba=planilha.AbaAtual!; var mapValidation=ValidadorMapeamentoColunas.Validar(mappings,aba.Cabecalhos); if(!mapValidation.Valido)return BadRequest("Mapeamento inválido.");
+        var options=new OpcoesValidacaoImportacao(request.InserirNovos,request.AtualizarExistentes,request.IgnorarVaziosAtualizacao,request.PermitirImportacaoParcial,request.BloquearComQualquerErro,true);
+        var context=await contextoValidacaoImportacaoService.PrepararAsync(request.ImportacaoId,companyId,GetCurrentUserId(),aba.Amostra,new(mappings),options,cancellationToken);
+        var result=await validadorDadosImportacaoService.ValidarAsync(context,cancellationToken);
+        if(request.PersistirResultado) await historicoImportacaoService.SalvarValidacaoAsync(companyId,request.ImportacaoId,GetCurrentUserId(),result,options,cancellationToken);
+        IEnumerable<ResultadoValidacaoLinha> query=result.Linhas;
+        query=request.Filtro switch { "validas"=>query.Where(x=>x.PodeImportar),"novas"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Inserir),"atualizacoes"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Atualizar),"avisos"=>query.Where(x=>x.Avisos.Count>0),"erros"=>query.Where(x=>x.Erros.Count>0),"duplicadas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Duplicada),"ignoradas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Ignorada),_=>query};
+        if(!string.IsNullOrWhiteSpace(request.Busca)){var term=request.Busca.Trim();query=query.Where(x=>x.NumeroLinha.ToString()==term||(x.CodigoProduto?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||x.Erros.Concat(x.Avisos).Any(e=>e.Mensagem.Contains(term,StringComparison.OrdinalIgnoreCase)));}
+        const int pageSize=50; var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)pageSize));request.Pagina=Math.Clamp(request.Pagina,1,pages);
+        return View(new ImportacaoValidacaoViewModel{ImportacaoId=request.ImportacaoId,NomeArquivo=historico.NomeArquivo,AbaSelecionada=aba.Nome,Resultado=result,Linhas=query.Skip((request.Pagina-1)*pageSize).Take(pageSize).ToList(),Pagina=request.Pagina,TotalPaginas=pages,Filtro=request.Filtro,Busca=request.Busca,Request=request});
+    }
 
     [HttpGet("Historico")]
     public async Task<IActionResult> Historico()
