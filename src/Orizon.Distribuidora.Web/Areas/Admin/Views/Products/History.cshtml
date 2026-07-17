@@ -1,0 +1,42 @@
+@model ProductHistoryViewModel
+
+@{
+    ViewData["Title"] = "Histórico do produto";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/products-grid.css" asp-append-version="true" />
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">Histórico</h1>
+        <p class="orizon-page-description">@Model.ProductName</p>
+    </div>
+    <orizon-button href="@Url.Action("Index")" variant="secondary" icon="arrow-left">Voltar</orizon-button>
+</header>
+
+<section class="products-table-shell">
+    <table class="products-table">
+        <thead>
+            <tr><th>Data</th><th>Campo</th><th>Anterior</th><th>Novo</th><th>Origem</th></tr>
+        </thead>
+        <tbody>
+        @if (Model.Items.Count == 0)
+        {
+            <tr><td colspan="5" class="products-empty">Nenhuma alteração registrada.</td></tr>
+        }
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                <td>@item.FieldName</td>
+                <td>@(item.OldValue ?? "—")</td>
+                <td>@(item.NewValue ?? "—")</td>
+                <td>@item.Origin</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</section>

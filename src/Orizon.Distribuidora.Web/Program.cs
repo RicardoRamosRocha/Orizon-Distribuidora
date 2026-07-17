@@ -43,4 +43,6 @@ await BasicRegistrationSeeder.SeedAsync(
     app.Services,
     app.Configuration);
 
+await ProductSeeder.SeedAsync(app.Services);
+
 app.Run();

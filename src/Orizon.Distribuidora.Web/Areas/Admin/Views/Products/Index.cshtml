@@ -1,0 +1,212 @@
+@model ProductIndexViewModel
+
+@{
+    ViewData["Title"] = "Produtos";
+    ViewData["ApplicationName"] = "Distribuidora";
+    var filter = Model.Filter;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/products-grid.css" asp-append-version="true" />
+}
+
+<header class="orizon-page-header products-header">
+    <div>
+        <h1 class="orizon-page-title">Produtos</h1>
+        <p class="orizon-page-description">Cadastro central de produtos próprios, terceiros, sob encomenda e serviços.</p>
+    </div>
+    <div class="products-header-actions">
+        <span class="products-total">@Model.TotalItems produto(s)</span>
+        <orizon-button href="@Url.Action("Create")" icon="plus">Novo produto</orizon-button>
+        <button class="orizon-button orizon-button-secondary" type="button" disabled>Importar · Em breve</button>
+    </div>
+</header>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="products-alert products-alert-success">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="products-alert products-alert-error">@error</div>
+}
+
+<section class="products-toolbar" aria-label="Filtros de produtos">
+    <form method="get" class="products-filter-form">
+        <input class="orizon-input products-search" name="Search" value="@filter.Search" placeholder="Buscar por código, SKU, barras, referência ou descrição" />
+
+        <select class="orizon-select" name="IsActive">
+            <option value="">Todos</option>
+            <option value="true" selected="@(filter.IsActive == true)">Ativos</option>
+            <option value="false" selected="@(filter.IsActive == false)">Inativos</option>
+        </select>
+
+        <select class="orizon-select" name="ProductType" asp-for="Filter.ProductType">
+            <option value="">Tipos</option>
+            <option value="@ProductType.Own">Próprios</option>
+            <option value="@ProductType.ThirdParty">Terceiros</option>
+            <option value="@ProductType.MadeToOrder">Sob encomenda</option>
+            <option value="@ProductType.Service">Serviços</option>
+        </select>
+
+        <select class="orizon-select" name="ControlsStock">
+            <option value="">Estoque</option>
+            <option value="true" selected="@(filter.ControlsStock == true)">Com controle</option>
+            <option value="false" selected="@(filter.ControlsStock == false)">Sem controle</option>
+        </select>
+
+        <select class="orizon-select" name="CategoryId" asp-items="Model.Categories">
+            <option value="">Categoria</option>
+        </select>
+
+        <select class="orizon-select" name="BrandId" asp-items="Model.Brands">
+            <option value="">Marca</option>
+        </select>
+
+        <select class="orizon-select" name="SupplierId" asp-items="Model.Suppliers">
+            <option value="">Fornecedor</option>
+        </select>
+
+        <select class="orizon-select" name="PartnerId" asp-items="Model.Partners">
+            <option value="">Parceiro</option>
+        </select>
+
+        <select class="orizon-select" name="PriceStatus" asp-for="Filter.PriceStatus">
+            <option value="@ProductPriceStatus.All">Validade</option>
+            <option value="@ProductPriceStatus.Valid">Preço válido</option>
+            <option value="@ProductPriceStatus.Expired">Preço vencido</option>
+            <option value="@ProductPriceStatus.NoValidity">Sem validade</option>
+        </select>
+
+        <select class="orizon-select" name="PageSize" asp-for="Filter.PageSize">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+
+        <input type="hidden" name="SortBy" value="@filter.SortBy" />
+        <input type="hidden" name="SortDirection" value="@filter.SortDirection" />
+
+        <button class="orizon-button" type="submit">Filtrar</button>
+        <a class="orizon-button orizon-button-secondary" href="@Url.Action("Index")">Limpar</a>
+    </form>
+</section>
+
+<section class="products-bulkbar" data-products-bulkbar hidden>
+    <span><strong data-selected-count>0</strong> selecionado(s) nesta página</span>
+    <form method="post" asp-action="BulkActivate" data-bulk-form="activate">
+        @Html.AntiForgeryToken()
+        <button class="orizon-button orizon-button-secondary" type="submit">Ativar</button>
+    </form>
+    <form method="post" asp-action="BulkDeactivate" data-bulk-form="deactivate">
+        @Html.AntiForgeryToken()
+        <button class="orizon-button orizon-button-secondary" type="submit">Inativar</button>
+    </form>
+</section>
+
+<section class="products-table-shell">
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" data-select-page aria-label="Selecionar página atual" /></th>
+                <th>Imagem</th>
+                <th><a asp-action="Index" asp-route-Search="@filter.Search" asp-route-SortBy="code" asp-route-SortDirection="@(filter.SortBy == "code" && filter.SortDirection == "asc" ? "desc" : "asc")">Código</a></th>
+                <th><a asp-action="Index" asp-route-Search="@filter.Search" asp-route-SortBy="name" asp-route-SortDirection="@(filter.SortBy == "name" && filter.SortDirection == "asc" ? "desc" : "asc")">Produto</a></th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Marca</th>
+                <th>Un.</th>
+                <th class="number">Custo</th>
+                <th class="number">Preço</th>
+                <th class="number">Margem</th>
+                <th>Validade</th>
+                <th>Estoque</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.Items.Count == 0)
+        {
+            <tr>
+                <td colspan="15" class="products-empty">Nenhum produto encontrado para os filtros atuais.</td>
+            </tr>
+        }
+        @foreach (var item in Model.Items)
+        {
+            var expired = item.PriceValidUntil is not null && item.PriceValidUntil < today;
+            <tr>
+                <td><input type="checkbox" value="@item.Id" data-select-row aria-label="Selecionar @item.Name" /></td>
+                <td>
+                    <img class="product-thumb" src="@(item.ImagePath ?? "/img/product-placeholder.svg")" alt="" />
+                </td>
+                <td class="mono">@item.InternalCode</td>
+                <td class="product-name-cell">
+                    <strong title="@item.Name">@item.Name</strong>
+                    @if (!string.IsNullOrWhiteSpace(item.ShortDescription))
+                    {
+                        <span title="@item.ShortDescription">@item.ShortDescription</span>
+                    }
+                </td>
+                <td><span class="product-badge">@ProductTypeLabel(item.ProductType)</span></td>
+                <td>@(item.CategoryName ?? "—")</td>
+                <td>@(item.BrandName ?? "—")</td>
+                <td>@item.UnitName</td>
+                <td class="number">@item.CostPrice.ToString("C")</td>
+                <td class="number">@item.SalePrice.ToString("C")</td>
+                <td class="number">@item.MarginPercentage.ToString("0.##")%</td>
+                <td class="@(expired ? "price-expired" : null)">@(item.PriceValidUntil?.ToString("dd/MM/yyyy") ?? "Sem validade")</td>
+                <td>@StockText(item)</td>
+                <td><span class="status-badge @(item.IsActive ? "active" : "inactive")">@(item.IsActive ? "Ativo" : "Inativo")</span></td>
+                <td class="row-actions">
+                    <a href="@Url.Action("Edit", new { id = item.Id })">Editar</a>
+                    <a href="@Url.Action("History", new { id = item.Id })">Histórico</a>
+                    <form method="post" action="@Url.Action(item.IsActive ? "Deactivate" : "Activate", new { id = item.Id })">
+                        @Html.AntiForgeryToken()
+                        <button type="submit">@(item.IsActive ? "Inativar" : "Ativar")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</section>
+
+<footer class="products-pagination">
+    <span>Exibindo @Model.PageStart-@Model.PageEnd de @Model.TotalItems</span>
+    <div>
+        @if (Model.HasPreviousPage)
+        {
+            <a class="orizon-button orizon-button-secondary" asp-action="Index" asp-route-Page="@(filter.Page - 1)" asp-route-PageSize="@filter.PageSize" asp-route-Search="@filter.Search">Anterior</a>
+        }
+        <span>Página @filter.Page de @Model.TotalPages</span>
+        @if (Model.HasNextPage)
+        {
+            <a class="orizon-button orizon-button-secondary" asp-action="Index" asp-route-Page="@(filter.Page + 1)" asp-route-PageSize="@filter.PageSize" asp-route-Search="@filter.Search">Próxima</a>
+        }
+    </div>
+</footer>
+
+@section Scripts {
+    <script src="~/js/products-grid.js" asp-append-version="true"></script>
+}
+
+@functions {
+    private static string ProductTypeLabel(ProductType type) => type switch
+    {
+        ProductType.Own => "Próprio",
+        ProductType.ThirdParty => "Terceiro",
+        ProductType.MadeToOrder => "Sob encomenda",
+        ProductType.Service => "Serviço",
+        _ => "Produto"
+    };
+
+    private static string StockText(ProductRowViewModel item) => item.ProductType switch
+    {
+        ProductType.ThirdParty => "Não controlado",
+        ProductType.Service => "Não aplicável",
+        _ when !item.ControlsStock => "Sem controle",
+        _ => item.MinimumStock is null ? "Aguardando estoque" : $"Mín. {item.MinimumStock:0.####}"
+    };
+}
