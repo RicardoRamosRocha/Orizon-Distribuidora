@@ -1,0 +1,22 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Acesso negado";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+<section class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">Acesso negado</h1>
+        <p class="orizon-page-description">Seu usuário não possui permissão para acessar esta área.</p>
+    </div>
+</section>
+
+<orizon-alert variant="warning" title="Permissão necessária">
+    Entre com um usuário autorizado ou solicite acesso administrativo.
+</orizon-alert>
+
+<orizon-button href="@Url.Action("Login", "Account")"
+               variant="secondary"
+               icon="arrow-left">
+    Voltar para login
+</orizon-button>

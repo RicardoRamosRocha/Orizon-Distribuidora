@@ -1,0 +1,304 @@
+@model BasicRegistrationFormViewModel
+
+@{
+    var module = Model.Module!;
+    ViewData["Title"] = Model.Id is null ? $"Novo {module.SingularTitle}" : $"Editar {module.SingularTitle}";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">@ViewData["Title"]</h1>
+        <p class="orizon-page-description">@module.Title</p>
+    </div>
+
+    <orizon-button href="@Url.Action("Index", new { moduleKey = module.Key })"
+                   variant="secondary"
+                   icon="arrow-left">
+        Voltar
+    </orizon-button>
+</header>
+
+<orizon-card>
+    <form method="post" class="orizon-form-grid">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="ModuleKey" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        @if (module.HasSupplierFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Type">Tipo</label>
+                <select class="orizon-select" asp-for="Type">
+                    <option value="@PersonType.Company">Pessoa jurídica</option>
+                    <option value="@PersonType.Individual">Pessoa física</option>
+                </select>
+                <span asp-validation-for="Type" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="LegalName">Razão social / nome</label>
+                <input class="orizon-input" asp-for="LegalName" />
+                <span asp-validation-for="LegalName" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="TradeName">Nome fantasia</label>
+                <input class="orizon-input" asp-for="TradeName" />
+                <span asp-validation-for="TradeName" class="text-danger"></span>
+            </div>
+        }
+        else
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Name">Nome</label>
+                <input class="orizon-input" asp-for="Name" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasPartnerFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Type">Tipo</label>
+                <select class="orizon-select" asp-for="Type">
+                    <option value="@PersonType.Company">Pessoa jurídica</option>
+                    <option value="@PersonType.Individual">Pessoa física</option>
+                </select>
+                <span asp-validation-for="Type" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasCode || module.HasWarehouse || module.HasLocationFields || module.HasStatusFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Code">Código</label>
+                <input class="orizon-input" asp-for="Code" />
+                <span asp-validation-for="Code" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasCategory)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="CategoryId">Categoria</label>
+                <select class="orizon-select" asp-for="CategoryId" asp-items="Model.Categories">
+                    <option value="">Selecione</option>
+                </select>
+                <span asp-validation-for="CategoryId" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasWarehouse)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="WarehouseId">Depósito</label>
+                <select class="orizon-select" asp-for="WarehouseId" asp-items="Model.Warehouses">
+                    <option value="">Selecione</option>
+                </select>
+                <span asp-validation-for="WarehouseId" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasUnitFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Abbreviation">Sigla</label>
+                <input class="orizon-input" asp-for="Abbreviation" />
+                <span asp-validation-for="Abbreviation" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="DecimalPlaces">Casas decimais</label>
+                <input class="orizon-input" asp-for="DecimalPlaces" type="number" min="0" max="6" />
+                <span asp-validation-for="DecimalPlaces" class="text-danger"></span>
+            </div>
+
+            <label class="orizon-checkbox">
+                <input asp-for="AllowsFraction" />
+                Permite fração
+            </label>
+        }
+
+        @if (module.HasSupplierFields || module.HasPartnerFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Document">CPF/CNPJ</label>
+                <input class="orizon-input" asp-for="Document" />
+                <span asp-validation-for="Document" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Email">E-mail</label>
+                <input class="orizon-input" asp-for="Email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Phone">Telefone</label>
+                <input class="orizon-input" asp-for="Phone" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="ContactName">Contato</label>
+                <input class="orizon-input" asp-for="ContactName" />
+                <span asp-validation-for="ContactName" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasSupplierFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="StateRegistration">Inscrição estadual</label>
+                <input class="orizon-input" asp-for="StateRegistration" />
+                <span asp-validation-for="StateRegistration" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="MobilePhone">Celular</label>
+                <input class="orizon-input" asp-for="MobilePhone" />
+                <span asp-validation-for="MobilePhone" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="ZipCode">CEP</label>
+                <input class="orizon-input" asp-for="ZipCode" />
+                <span asp-validation-for="ZipCode" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Street">Logradouro</label>
+                <input class="orizon-input" asp-for="Street" />
+                <span asp-validation-for="Street" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Number">Número</label>
+                <input class="orizon-input" asp-for="Number" />
+                <span asp-validation-for="Number" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Complement">Complemento</label>
+                <input class="orizon-input" asp-for="Complement" />
+                <span asp-validation-for="Complement" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Neighborhood">Bairro</label>
+                <input class="orizon-input" asp-for="Neighborhood" />
+                <span asp-validation-for="Neighborhood" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="City">Cidade</label>
+                <input class="orizon-input" asp-for="City" />
+                <span asp-validation-for="City" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="State">UF</label>
+                <input class="orizon-input" asp-for="State" maxlength="2" />
+                <span asp-validation-for="State" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasPartnerFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="CommissionPercentage">Comissão (%)</label>
+                <input class="orizon-input" asp-for="CommissionPercentage" type="number" min="0" max="100" step="0.01" />
+                <span asp-validation-for="CommissionPercentage" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasWarehouseFields)
+        {
+            <label class="orizon-checkbox">
+                <input asp-for="IsDefault" />
+                Depósito padrão
+            </label>
+        }
+
+        @if (module.HasLocationFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Aisle">Corredor</label>
+                <input class="orizon-input" asp-for="Aisle" />
+                <span asp-validation-for="Aisle" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Section">Seção</label>
+                <input class="orizon-input" asp-for="Section" />
+                <span asp-validation-for="Section" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Shelf">Prateleira</label>
+                <input class="orizon-input" asp-for="Shelf" />
+                <span asp-validation-for="Shelf" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Position">Posição</label>
+                <input class="orizon-input" asp-for="Position" />
+                <span asp-validation-for="Position" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasStatusFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Color">Cor</label>
+                <input class="orizon-input" asp-for="Color" placeholder="#16A34A" />
+                <span asp-validation-for="Color" class="text-danger"></span>
+            </div>
+
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="SortOrder">Ordem</label>
+                <input class="orizon-input" asp-for="SortOrder" type="number" min="0" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+            </div>
+
+            @if (Model.IsSystem)
+            {
+                <orizon-alert variant="info" title="Status de sistema">
+                    Este status é protegido contra exclusão lógica.
+                </orizon-alert>
+            }
+        }
+
+        @if (module.HasDescription || module.HasSupplierFields || module.HasPartnerFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Description">Descrição</label>
+                <textarea class="orizon-textarea" asp-for="Description"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+        }
+
+        @if (module.HasSupplierFields || module.HasPartnerFields)
+        {
+            <div class="orizon-field">
+                <label class="orizon-label" asp-for="Notes">Observações</label>
+                <textarea class="orizon-textarea" asp-for="Notes"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+        }
+
+        <div class="orizon-form-actions">
+            <orizon-button type="submit" variant="primary" icon="save">Salvar</orizon-button>
+            <orizon-button href="@Url.Action("Index", new { moduleKey = module.Key })"
+                           variant="secondary">
+                Cancelar
+            </orizon-button>
+        </div>
+    </form>
+</orizon-card>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

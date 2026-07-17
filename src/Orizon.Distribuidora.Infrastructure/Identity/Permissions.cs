@@ -8,6 +8,14 @@ public static class Permissions
         public const string Manage = "companies.manage";
     }
 
+    public static class BasicRegistrations
+    {
+        public const string View = "basic-registrations.view";
+        public const string Create = "basic-registrations.create";
+        public const string Edit = "basic-registrations.edit";
+        public const string Delete = "basic-registrations.delete";
+    }
+
     public static class Users
     {
         public const string View = "users.view";

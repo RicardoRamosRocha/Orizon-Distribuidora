@@ -1,9 +1,12 @@
 using Orizon.Distribuidora.Infrastructure.DependencyInjection;
 using Orizon.Distribuidora.Infrastructure.Identity.Seed;
+using Orizon.Distribuidora.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddScoped<ICurrentCompanyAccessor, CurrentCompanyAccessor>();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
@@ -33,6 +36,10 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 await IdentitySeeder.SeedAsync(
+    app.Services,
+    app.Configuration);
+
+await BasicRegistrationSeeder.SeedAsync(
     app.Services,
     app.Configuration);
 

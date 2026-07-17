@@ -20,6 +20,26 @@ public sealed class ApplicationDbContext
 
     public DbSet<Company> Companies => Set<Company>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Subcategory> Subcategories => Set<Subcategory>();
+
+    public DbSet<Brand> Brands => Set<Brand>();
+
+    public DbSet<UnitOfMeasure> UnitsOfMeasure => Set<UnitOfMeasure>();
+
+    public DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
+
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    public DbSet<CommercialPartner> CommercialPartners => Set<CommercialPartner>();
+
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
+    public DbSet<InternalLocation> InternalLocations => Set<InternalLocation>();
+
+    public DbSet<RegistrationStatus> RegistrationStatuses => Set<RegistrationStatus>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

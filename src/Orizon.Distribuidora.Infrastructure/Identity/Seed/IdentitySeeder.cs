@@ -84,10 +84,46 @@ public static class IdentitySeeder
             if (!userResult.Succeeded)
             {
                 throw new InvalidOperationException(
-                    "Não foi possível criar o administrador inicial: " +
+                "Não foi possível criar o administrador inicial: " +
                     string.Join(
                         ", ",
                         userResult.Errors.Select(error => error.Description)));
+            }
+        }
+        else
+        {
+            var shouldUpdateAdministrator = false;
+
+            if (!administrator.IsActive)
+            {
+                administrator.IsActive = true;
+                shouldUpdateAdministrator = true;
+            }
+
+            if (administrator.EmailConfirmed is false)
+            {
+                administrator.EmailConfirmed = true;
+                shouldUpdateAdministrator = true;
+            }
+
+            if (!string.Equals(administrator.FullName, fullName, StringComparison.Ordinal))
+            {
+                administrator.FullName = fullName;
+                shouldUpdateAdministrator = true;
+            }
+
+            if (shouldUpdateAdministrator)
+            {
+                var updateResult = await userManager.UpdateAsync(administrator);
+
+                if (!updateResult.Succeeded)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível atualizar o administrador inicial: " +
+                        string.Join(
+                            ", ",
+                            updateResult.Errors.Select(error => error.Description)));
+                }
             }
         }
 

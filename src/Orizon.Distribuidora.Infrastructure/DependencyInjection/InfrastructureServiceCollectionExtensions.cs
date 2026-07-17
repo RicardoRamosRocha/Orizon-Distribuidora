@@ -57,7 +57,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/Account/Login";
+            options.LogoutPath = "/Account/Logout";
             options.AccessDeniedPath = "/Account/AccessDenied";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
         });
