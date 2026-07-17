@@ -40,6 +40,10 @@ public sealed class ApplicationDbContext
 
     public DbSet<RegistrationStatus> RegistrationStatuses => Set<RegistrationStatus>();
 
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<ProductChangeHistory> ProductChangeHistories => Set<ProductChangeHistory>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
