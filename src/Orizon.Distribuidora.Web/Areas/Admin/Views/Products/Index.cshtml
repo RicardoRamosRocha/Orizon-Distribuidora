@@ -1,0 +1,321 @@
+@model ProductIndexViewModel
+
+@{
+    ViewData["Title"] = "Produtos";
+    ViewData["ApplicationName"] = "Distribuidora";
+
+    var filter = Model.Filter;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var columns = new[]
+    {
+        new { Key = "code", Label = "Codigo", Sort = "code", Width = "132px", Sticky = true },
+        new { Key = "name", Label = "Produto", Sort = "name", Width = "320px", Sticky = true },
+        new { Key = "status", Label = "Status", Sort = "status", Width = "132px", Sticky = false },
+        new { Key = "type", Label = "Tipo", Sort = "type", Width = "140px", Sticky = false },
+        new { Key = "category", Label = "Categoria", Sort = "category", Width = "180px", Sticky = false },
+        new { Key = "brand", Label = "Marca", Sort = "brand", Width = "160px", Sticky = false },
+        new { Key = "unit", Label = "Un.", Sort = "", Width = "90px", Sticky = false },
+        new { Key = "cost", Label = "Custo", Sort = "cost", Width = "128px", Sticky = false },
+        new { Key = "price", Label = "Preco", Sort = "price", Width = "128px", Sticky = false },
+        new { Key = "margin", Label = "Margem", Sort = "margin", Width = "128px", Sticky = false },
+        new { Key = "validity", Label = "Validade", Sort = "", Width = "150px", Sticky = false },
+        new { Key = "stock", Label = "Estoque", Sort = "", Width = "160px", Sticky = false },
+        new { Key = "actions", Label = "Acoes", Sort = "", Width = "220px", Sticky = false }
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/@@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" href="~/css/products-premium-grid.css" asp-append-version="true" />
+}
+
+<section class="products-workspace" data-products-grid data-total-records="@Model.TotalItems" data-page="@filter.Page">
+    <header class="products-hero">
+        <div class="products-title-block">
+            <span class="products-kicker"><i class="ph ph-package"></i> Catalogo operacional</span>
+            <h1>Produtos</h1>
+            <p>Grade premium integrada ao cadastro real, com filtros, ordenacao e paginacao no servidor.</p>
+        </div>
+
+        <div class="products-hero-actions">
+            <button type="button" class="products-icon-button" data-theme-toggle aria-label="Alternar modo escuro">
+                <i class="ph ph-moon"></i>
+            </button>
+            <a class="products-button products-button-secondary" href="@Url.Action("Index")">
+                <i class="ph ph-funnel-x"></i>
+                Limpar
+            </a>
+            <a class="products-button products-button-primary" href="@Url.Action("Create")">
+                <i class="ph ph-plus"></i>
+                Novo produto
+            </a>
+        </div>
+    </header>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="products-alert products-alert-success">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="products-alert products-alert-error">@error</div>
+    }
+
+    <form method="get" class="products-toolbar" aria-label="Filtros de produtos" data-server-filter-form>
+        <label class="products-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="search" name="Search" value="@filter.Search" placeholder="Buscar por codigo, SKU, barras, referencia ou descricao" autocomplete="off" />
+        </label>
+
+        <div class="products-filter-strip">
+            <select name="IsActive" aria-label="Status">
+                <option value="">Status</option>
+                <option value="true" selected="@(filter.IsActive == true)">Ativos</option>
+                <option value="false" selected="@(filter.IsActive == false)">Inativos</option>
+            </select>
+
+            <select name="ProductType" asp-for="Filter.ProductType" aria-label="Tipo">
+                <option value="">Tipo</option>
+                <option value="@ProductType.Own">Proprios</option>
+                <option value="@ProductType.ThirdParty">Terceiros</option>
+                <option value="@ProductType.MadeToOrder">Sob encomenda</option>
+                <option value="@ProductType.Service">Servicos</option>
+            </select>
+
+            <select name="ControlsStock" aria-label="Estoque">
+                <option value="">Estoque</option>
+                <option value="true" selected="@(filter.ControlsStock == true)">Com controle</option>
+                <option value="false" selected="@(filter.ControlsStock == false)">Sem controle</option>
+            </select>
+
+            <select name="CategoryId" asp-items="Model.Categories" aria-label="Categoria">
+                <option value="">Categoria</option>
+            </select>
+
+            <select name="BrandId" asp-items="Model.Brands" aria-label="Marca">
+                <option value="">Marca</option>
+            </select>
+
+            <select name="SupplierId" asp-items="Model.Suppliers" aria-label="Fornecedor">
+                <option value="">Fornecedor</option>
+            </select>
+
+            <select name="PartnerId" asp-items="Model.Partners" aria-label="Parceiro">
+                <option value="">Parceiro</option>
+            </select>
+
+            <select name="PriceStatus" asp-for="Filter.PriceStatus" aria-label="Validade">
+                <option value="@ProductPriceStatus.All">Validade</option>
+                <option value="@ProductPriceStatus.Valid">Preco valido</option>
+                <option value="@ProductPriceStatus.Expired">Preco vencido</option>
+                <option value="@ProductPriceStatus.NoValidity">Sem validade</option>
+            </select>
+
+            <select name="PageSize" asp-for="Filter.PageSize" aria-label="Itens por pagina">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <input type="hidden" name="SortBy" value="@filter.SortBy" />
+        <input type="hidden" name="SortDirection" value="@filter.SortDirection" />
+        <input type="hidden" name="Page" value="1" />
+
+        <button type="submit" class="products-button products-button-primary">
+            <i class="ph ph-funnel"></i>
+            Filtrar
+        </button>
+
+        <div class="products-column-menu">
+            <button type="button" class="products-button products-button-secondary" data-column-menu-toggle aria-expanded="false">
+                <i class="ph ph-columns"></i>
+                Colunas
+            </button>
+            <div class="products-column-popover" data-column-menu hidden>
+                @foreach (var column in columns.Where(column => column.Key != "actions"))
+                {
+                    <label>
+                        <input type="checkbox" data-column-toggle="@column.Key" checked />
+                        @column.Label
+                    </label>
+                }
+            </div>
+        </div>
+    </form>
+
+    <div class="products-bulkbar" data-bulkbar hidden>
+        <strong><span data-selected-count>0</span> selecionado(s)</strong>
+        <form method="post" asp-action="BulkActivate" data-bulk-form="activate">
+            @Html.AntiForgeryToken()
+            <button type="submit"><i class="ph ph-check-circle"></i> Ativar</button>
+        </form>
+        <form method="post" asp-action="BulkDeactivate" data-bulk-form="deactivate">
+            @Html.AntiForgeryToken()
+            <button type="submit"><i class="ph ph-prohibit"></i> Inativar</button>
+        </form>
+    </div>
+
+    <div class="products-grid-shell">
+        <div class="products-grid-scroll" tabindex="0" aria-label="Grade de produtos">
+            <table class="products-grid">
+                <colgroup>
+                    <col class="products-select-col" />
+                    @foreach (var column in columns)
+                    {
+                        <col data-col="@column.Key" style="width: @column.Width;" />
+                    }
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="products-select-cell products-sticky-select">
+                            <input type="checkbox" data-select-all aria-label="Selecionar pagina atual" />
+                        </th>
+                        @foreach (var column in columns)
+                        {
+                            <th data-column="@column.Key" class="@(column.Sticky ? "products-sticky-col" : string.Empty)">
+                                @if (!string.IsNullOrWhiteSpace(column.Sort))
+                                {
+                                    <a asp-action="Index"
+                                       asp-route-Search="@filter.Search"
+                                       asp-route-IsActive="@filter.IsActive"
+                                       asp-route-ProductType="@filter.ProductType"
+                                       asp-route-ControlsStock="@filter.ControlsStock"
+                                       asp-route-CategoryId="@filter.CategoryId"
+                                       asp-route-BrandId="@filter.BrandId"
+                                       asp-route-SupplierId="@filter.SupplierId"
+                                       asp-route-PartnerId="@filter.PartnerId"
+                                       asp-route-PriceStatus="@filter.PriceStatus"
+                                       asp-route-PageSize="@filter.PageSize"
+                                       asp-route-SortBy="@column.Sort"
+                                       asp-route-SortDirection="@(filter.SortBy == column.Sort && filter.SortDirection == "asc" ? "desc" : "asc")">
+                                        @column.Label
+                                        <i class="ph ph-caret-up-down"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span>@column.Label</span>
+                                }
+                                <span class="products-resizer" data-resizer="@column.Key" aria-hidden="true"></span>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="@(columns.Length + 1)" class="products-empty">Nenhum produto encontrado para os filtros atuais.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Model.Items)
+                    {
+                        var expired = item.PriceValidUntil is not null && item.PriceValidUntil < today;
+                        var statusClass = item.IsActive ? "is-active" : "is-muted";
+
+                        <tr data-row data-id="@item.Id">
+                            <td class="products-select-cell products-sticky-select">
+                                <input type="checkbox" value="@item.Id" data-row-select aria-label="Selecionar @item.Name" />
+                            </td>
+                            <td data-column="code" class="products-code products-sticky-col">@item.InternalCode</td>
+                            <td data-column="name" class="products-name products-sticky-col">
+                                <span>@item.Name</span>
+                                @if (!string.IsNullOrWhiteSpace(item.ShortDescription))
+                                {
+                                    <small>@item.ShortDescription</small>
+                                }
+                            </td>
+                            <td data-column="status">
+                                <span class="products-badge @statusClass">@(item.IsActive ? "Ativo" : "Inativo")</span>
+                            </td>
+                            <td data-column="type">@ProductTypeLabel(item.ProductType)</td>
+                            <td data-column="category">@(item.CategoryName ?? "-")</td>
+                            <td data-column="brand">@(item.BrandName ?? "-")</td>
+                            <td data-column="unit">@item.UnitName</td>
+                            <td data-column="cost" class="products-number">@item.CostPrice.ToString("C")</td>
+                            <td data-column="price" class="products-number">@item.SalePrice.ToString("C")</td>
+                            <td data-column="margin" class="products-number">@item.MarginPercentage.ToString("0.##")%</td>
+                            <td data-column="validity" class="@(expired ? "products-warning-text" : string.Empty)">
+                                @(item.PriceValidUntil?.ToString("dd/MM/yyyy") ?? "Sem validade")
+                            </td>
+                            <td data-column="stock">@StockText(item)</td>
+                            <td data-column="actions" class="products-row-actions">
+                                <a href="@Url.Action("Edit", new { id = item.Id })"><i class="ph ph-pencil-simple"></i> Editar</a>
+                                <a href="@Url.Action("History", new { id = item.Id })"><i class="ph ph-clock-counter-clockwise"></i> Historico</a>
+                                <form method="post" action="@Url.Action(item.IsActive ? "Deactivate" : "Activate", new { id = item.Id })">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit">@(item.IsActive ? "Inativar" : "Ativar")</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer class="products-grid-footer">
+        <span>Exibindo <strong>@Model.PageStart-@Model.PageEnd</strong> de <strong>@Model.TotalItems</strong></span>
+        <span>Pagina <strong>@filter.Page</strong> de <strong>@Model.TotalPages</strong></span>
+        @if (Model.HasPreviousPage)
+        {
+            <a class="products-button products-button-secondary"
+               asp-action="Index"
+               asp-route-Page="@(filter.Page - 1)"
+               asp-route-PageSize="@filter.PageSize"
+               asp-route-Search="@filter.Search"
+               asp-route-IsActive="@filter.IsActive"
+               asp-route-ProductType="@filter.ProductType"
+               asp-route-ControlsStock="@filter.ControlsStock"
+               asp-route-CategoryId="@filter.CategoryId"
+               asp-route-BrandId="@filter.BrandId"
+               asp-route-SupplierId="@filter.SupplierId"
+               asp-route-PartnerId="@filter.PartnerId"
+               asp-route-PriceStatus="@filter.PriceStatus"
+               asp-route-SortBy="@filter.SortBy"
+               asp-route-SortDirection="@filter.SortDirection">Anterior</a>
+        }
+        @if (Model.HasNextPage)
+        {
+            <a class="products-button products-button-secondary"
+               asp-action="Index"
+               asp-route-Page="@(filter.Page + 1)"
+               asp-route-PageSize="@filter.PageSize"
+               asp-route-Search="@filter.Search"
+               asp-route-IsActive="@filter.IsActive"
+               asp-route-ProductType="@filter.ProductType"
+               asp-route-ControlsStock="@filter.ControlsStock"
+               asp-route-CategoryId="@filter.CategoryId"
+               asp-route-BrandId="@filter.BrandId"
+               asp-route-SupplierId="@filter.SupplierId"
+               asp-route-PartnerId="@filter.PartnerId"
+               asp-route-PriceStatus="@filter.PriceStatus"
+               asp-route-SortBy="@filter.SortBy"
+               asp-route-SortDirection="@filter.SortDirection">Proxima</a>
+        }
+    </footer>
+</section>
+
+@section Scripts {
+    <script src="~/js/products-premium-grid.js" asp-append-version="true"></script>
+}
+
+@functions {
+    private static string ProductTypeLabel(ProductType type) => type switch
+    {
+        ProductType.Own => "Proprio",
+        ProductType.ThirdParty => "Terceiro",
+        ProductType.MadeToOrder => "Sob encomenda",
+        ProductType.Service => "Servico",
+        _ => "Produto"
+    };
+
+    private static string StockText(ProductRowViewModel item) => item.ProductType switch
+    {
+        ProductType.ThirdParty => "Nao controlado",
+        ProductType.Service => "Nao aplicavel",
+        _ when !item.ControlsStock => "Sem controle",
+        _ => item.MinimumStock is null ? "Aguardando estoque" : $"Min. {item.MinimumStock:0.####}"
+    };
+}

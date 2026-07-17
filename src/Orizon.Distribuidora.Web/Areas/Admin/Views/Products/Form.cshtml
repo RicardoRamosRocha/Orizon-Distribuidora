@@ -1,0 +1,100 @@
+@model ProductFormViewModel
+
+@{
+    var isEdit = Model.Id is not null;
+    ViewData["Title"] = isEdit ? "Editar produto" : "Novo produto";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/products-grid.css" asp-append-version="true" />
+}
+
+<header class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">@ViewData["Title"]</h1>
+        <p class="orizon-page-description">Identificação, classificação, comercial e estoque configurável.</p>
+    </div>
+    <orizon-button href="@Url.Action("Index")" variant="secondary" icon="arrow-left">Voltar</orizon-button>
+</header>
+
+<form method="post" enctype="multipart/form-data" class="product-form" data-product-form>
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="CurrentImagePath" />
+    <div asp-validation-summary="ModelOnly" class="products-alert products-alert-error"></div>
+
+    <section class="product-form-section">
+        <h2>Identificação</h2>
+        <div class="product-form-grid">
+            <label class="orizon-field"><span class="orizon-label">Código interno *</span><input class="orizon-input" asp-for="InternalCode" autofocus /><span asp-validation-for="InternalCode" class="text-danger"></span></label>
+            <label class="orizon-field"><span class="orizon-label">SKU</span><input class="orizon-input" asp-for="Sku" /></label>
+            <label class="orizon-field"><span class="orizon-label">Código de barras</span><input class="orizon-input" asp-for="Barcode" /></label>
+            <label class="orizon-field"><span class="orizon-label">Referência</span><input class="orizon-input" asp-for="Reference" /></label>
+            <label class="orizon-field span-2"><span class="orizon-label">Descrição principal *</span><input class="orizon-input" asp-for="Name" /><span asp-validation-for="Name" class="text-danger"></span></label>
+            <label class="orizon-field span-2"><span class="orizon-label">Descrição resumida</span><input class="orizon-input" asp-for="ShortDescription" /></label>
+            <label class="orizon-field span-4"><span class="orizon-label">Descrição detalhada</span><textarea class="orizon-input" asp-for="Description" rows="3"></textarea></label>
+            <label class="orizon-field span-2"><span class="orizon-label">Imagem principal</span><input class="orizon-input" type="file" name="imageFile" accept=".jpg,.jpeg,.png,.webp" /></label>
+            @if (!string.IsNullOrWhiteSpace(Model.CurrentImagePath))
+            {
+                <label class="orizon-checkbox"><input asp-for="RemoveImage" /> Remover imagem atual</label>
+            }
+        </div>
+    </section>
+
+    <section class="product-form-section">
+        <h2>Classificação</h2>
+        <div class="product-form-grid">
+            <label class="orizon-field"><span class="orizon-label">Tipo</span><select class="orizon-select" asp-for="ProductType" data-product-type><option value="@ProductType.Own">Próprio</option><option value="@ProductType.ThirdParty">Terceiro</option><option value="@ProductType.MadeToOrder">Sob encomenda</option><option value="@ProductType.Service">Serviço</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Categoria</span><select class="orizon-select" asp-for="CategoryId" asp-items="Model.Categories" data-category-select><option value="">Selecione</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Subcategoria</span><select class="orizon-select" asp-for="SubcategoryId" asp-items="Model.Subcategories" data-subcategory-select><option value="">Selecione</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Marca</span><select class="orizon-select" asp-for="BrandId" asp-items="Model.Brands"><option value="">Selecione</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Grupo</span><select class="orizon-select" asp-for="ProductGroupId" asp-items="Model.Groups"><option value="">Selecione</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Unidade *</span><select class="orizon-select" asp-for="UnitOfMeasureId" asp-items="Model.Units"><option value="">Selecione</option></select><span asp-validation-for="UnitOfMeasureId" class="text-danger"></span></label>
+            <label class="orizon-field"><span class="orizon-label">NCM</span><input class="orizon-input" asp-for="Ncm" inputmode="numeric" /></label>
+            <label class="orizon-field"><span class="orizon-label">CEST</span><input class="orizon-input" asp-for="Cest" inputmode="numeric" /></label>
+        </div>
+    </section>
+
+    <section class="product-form-section">
+        <h2>Comercial</h2>
+        <div class="product-form-grid">
+            <label class="orizon-field"><span class="orizon-label">Preço de custo</span><input class="orizon-input" asp-for="CostPrice" type="number" min="0" step="0.01" data-cost /></label>
+            <label class="orizon-field"><span class="orizon-label">Preço de venda</span><input class="orizon-input" asp-for="SalePrice" type="number" min="0" step="0.01" data-price /></label>
+            <label class="orizon-field"><span class="orizon-label">Margem sobre venda</span><input class="orizon-input" value="0%" readonly data-margin /></label>
+            <label class="orizon-field"><span class="orizon-label">Fornecedor principal</span><select class="orizon-select" asp-for="MainSupplierId" asp-items="Model.Suppliers"><option value="">Selecione</option></select></label>
+            <label class="orizon-field" data-partner-field><span class="orizon-label">Parceiro comercial</span><select class="orizon-select" asp-for="PartnerId" asp-items="Model.Partners"><option value="">Selecione</option></select><span asp-validation-for="PartnerId" class="text-danger"></span></label>
+            <label class="orizon-field"><span class="orizon-label">Tipo de comissão</span><select class="orizon-select" asp-for="CommissionType" data-commission-type><option value="">Sem comissão</option><option value="@CommissionType.Percentage">Percentual</option><option value="@CommissionType.FixedAmount">Valor fixo</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Comissão</span><input class="orizon-input" asp-for="CommissionValue" type="number" min="0" step="0.01" /></label>
+            <label class="orizon-field"><span class="orizon-label">Validade do preço</span><input class="orizon-input" asp-for="PriceValidUntil" type="date" /></label>
+        </div>
+    </section>
+
+    <section class="product-form-section">
+        <h2>Estoque e localização</h2>
+        <div class="product-form-grid" data-stock-fields>
+            <label class="orizon-checkbox"><input asp-for="ControlsStock" data-controls-stock /> Controla estoque</label>
+            <label class="orizon-field"><span class="orizon-label">Estoque mínimo</span><input class="orizon-input" asp-for="MinimumStock" type="number" min="0" step="0.0001" data-stock-input /></label>
+            <label class="orizon-field"><span class="orizon-label">Depósito padrão</span><select class="orizon-select" asp-for="DefaultWarehouseId" asp-items="Model.Warehouses" data-warehouse-select data-stock-input><option value="">Selecione</option></select></label>
+            <label class="orizon-field"><span class="orizon-label">Localização padrão</span><select class="orizon-select" asp-for="DefaultWarehouseLocationId" asp-items="Model.Locations" data-location-select data-stock-input><option value="">Selecione</option></select></label>
+        </div>
+    </section>
+
+    <section class="product-form-section">
+        <h2>Configurações</h2>
+        <div class="product-form-grid">
+            <label class="orizon-checkbox"><input asp-for="IsActive" /> Produto ativo</label>
+            <label class="orizon-field span-4"><span class="orizon-label">Observações</span><textarea class="orizon-input" asp-for="Notes" rows="3"></textarea></label>
+        </div>
+    </section>
+
+    <footer class="product-form-actions">
+        <button class="orizon-button" type="submit">Salvar</button>
+        <a class="orizon-button orizon-button-secondary" href="@Url.Action("Index")">Cancelar</a>
+    </footer>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/product-form.js" asp-append-version="true"></script>
+}
