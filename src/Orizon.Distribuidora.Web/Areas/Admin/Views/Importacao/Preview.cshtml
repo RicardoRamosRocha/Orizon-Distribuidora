@@ -113,7 +113,7 @@
                        icon="arrow-left">
             Cancelar
         </orizon-button>
-        <orizon-button href="@Url.Action("Resultado")"
+        <orizon-button href="@Url.Action("Mapeamento", new { id = Model.ImportacaoId, token = Model.TokenArquivo, aba = Model.AbaSelecionada })"
                        variant="primary"
                        icon="arrow-right">
             Continuar para mapeamento

@@ -132,6 +132,9 @@ public sealed class ModeloImportacaoConfiguration : IEntityTypeConfiguration<Mod
         builder.Property(entity => entity.TipoArquivo).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.MapeamentoColunasJson).HasColumnType("jsonb").IsRequired();
         builder.Property(entity => entity.Ativo).HasDefaultValue(true).IsRequired();
+        builder.Property(entity => entity.UsuarioId);
+        builder.Property(entity => entity.AssinaturaColunas).HasMaxLength(2000).HasDefaultValue("").IsRequired();
+        builder.Property(entity => entity.Padrao).HasDefaultValue(false).IsRequired();
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
 

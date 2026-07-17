@@ -22,19 +22,25 @@ public sealed class ImportacaoController : Controller
     private readonly ICurrentCompanyAccessor currentCompanyAccessor;
     private readonly ImportacaoUploadValidator uploadValidator;
     private readonly ImportacaoOptions options;
+    private readonly IMapeadorColunasService mapeadorColunasService;
+    private readonly IModeloImportacaoService modeloImportacaoService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
         ILeitorExcelService leitorExcelService,
         ICurrentCompanyAccessor currentCompanyAccessor,
         ImportacaoUploadValidator uploadValidator,
-        IOptions<ImportacaoOptions> options)
+        IOptions<ImportacaoOptions> options,
+        IMapeadorColunasService mapeadorColunasService,
+        IModeloImportacaoService modeloImportacaoService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
         this.currentCompanyAccessor = currentCompanyAccessor;
         this.uploadValidator = uploadValidator;
         this.options = options.Value;
+        this.mapeadorColunasService = mapeadorColunasService;
+        this.modeloImportacaoService = modeloImportacaoService;
     }
 
     [HttpGet("")]
@@ -192,6 +198,37 @@ public sealed class ImportacaoController : Controller
     {
         return View();
     }
+
+    [HttpGet("Mapeamento")]
+    public async Task<IActionResult> Mapeamento(Guid id, string token, string? aba, Guid? modeloId, CancellationToken cancellationToken)
+    {
+        if (!IsValidToken(token)) return RedirectToAction(nameof(Upload));
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        var historico = await historicoImportacaoService.ObterAsync(companyId, id, cancellationToken);
+        var path = GetTemporaryPath(token);
+        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
+        await using var input = System.IO.File.OpenRead(path);
+        var leitura = await leitorExcelService.LerAsync(new(input, historico.NomeArquivo, historico.TamanhoArquivoBytes), aba, 20, cancellationToken);
+        var planilha = leitura.AbaAtual!;
+        var modelos = await modeloImportacaoService.ListarAsync(companyId, GetCurrentUserId(), cancellationToken);
+        var modelo = modeloId.HasValue ? modelos.FirstOrDefault(x => x.Id == modeloId) : await modeloImportacaoService.EncontrarCompativelAsync(companyId, GetCurrentUserId(), planilha.Cabecalhos, cancellationToken);
+        var automatico = modelo is null ? await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, cancellationToken) : new MapeamentoColunasImportacao(modelo.Mapeamentos);
+        return View(new ImportacaoMapeamentoViewModel { ImportacaoId=id, TokenArquivo=token, NomeArquivo=historico.NomeArquivo, AbaSelecionada=leitura.AbaSelecionada, Cabecalhos=planilha.Cabecalhos, Amostra=planilha.Amostra.Select(x => new ImportacaoLinhaAmostraViewModel { NumeroLinha=x.NumeroLinha, Valores=x.Valores }).ToList(), Campos=CatalogoCamposProdutoImportacao.Campos, Mapeamentos=automatico.Colunas, Confiancas=automatico.Confiancas ?? new Dictionary<string,double>(), Modelos=modelos, ModeloCarregadoId=modelo?.Id });
+    }
+
+    [HttpPost("SalvarModelo")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SalvarModelo([FromBody] SalvarModeloImportacaoRequest request, CancellationToken cancellationToken)
+    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); var model = await modeloImportacaoService.SalvarAsync(companyId, GetCurrentUserId(), request.Nome, request.Padrao, request.Mapeamentos, request.Cabecalhos, cancellationToken); return Json(new { model.Id, model.Nome }); }
+
+    [HttpPost("ExcluirModelo/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExcluirModelo(Guid id, CancellationToken cancellationToken)
+    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); await modeloImportacaoService.ExcluirAsync(companyId, id, cancellationToken); return NoContent(); }
+
+    [HttpPost("ValidarMapeamento")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ValidarMapeamento([FromBody] SalvarModeloImportacaoRequest request) => Json(ValidadorMapeamentoColunas.Validar(request.Mapeamentos, request.Cabecalhos, request.Amostra));
 
     [HttpGet("Historico")]
     public async Task<IActionResult> Historico()

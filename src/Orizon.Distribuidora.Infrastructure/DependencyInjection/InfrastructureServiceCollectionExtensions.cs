@@ -72,6 +72,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ILeitorExcelService, LeitorExcelService>();
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
         services.AddScoped<IMapeadorColunasService, MapeadorColunasService>();
+        services.AddScoped<IModeloImportacaoService, ModeloImportacaoService>();
         services.AddScoped<IHistoricoImportacaoService, HistoricoImportacaoService>();
 
         return services;
