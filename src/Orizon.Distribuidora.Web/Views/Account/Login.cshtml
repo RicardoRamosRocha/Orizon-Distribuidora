@@ -1,0 +1,56 @@
+@model Orizon.Distribuidora.Web.Models.Account.LoginViewModel
+
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Entrar";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+<section class="orizon-page-header">
+    <div>
+        <h1 class="orizon-page-title">Entrar</h1>
+        <p class="orizon-page-description">Acesso administrativo da Orizon Distribuidora.</p>
+    </div>
+</section>
+
+<orizon-card>
+    <form asp-controller="Account"
+          asp-action="Login"
+          method="post"
+          class="orizon-form-grid">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="orizon-field">
+            <label class="orizon-label" asp-for="Email">E-mail</label>
+            <input class="orizon-input"
+                   asp-for="Email"
+                   autocomplete="username"
+                   autofocus />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+
+        <div class="orizon-field">
+            <label class="orizon-label" asp-for="Password">Senha</label>
+            <input class="orizon-input"
+                   asp-for="Password"
+                   autocomplete="current-password" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+
+        <label class="orizon-checkbox">
+            <input asp-for="RememberMe" />
+            Lembrar-me
+        </label>
+
+        <div class="orizon-form-actions">
+            <orizon-button type="submit"
+                           variant="primary"
+                           icon="power">
+                Entrar
+            </orizon-button>
+        </div>
+    </form>
+</orizon-card>

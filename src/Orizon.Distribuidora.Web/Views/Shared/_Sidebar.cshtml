@@ -29,57 +29,87 @@
     <div class="orizon-sidebar-section">
         <span class="orizon-sidebar-section-title">Geral</span>
 
-        <a class="orizon-sidebar-link @IsActive("/Admin/Dashboard")"
-           href="/Admin/Dashboard">
-            <orizon-icon name="house" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Dashboard</span>
-        </a>
-    </div>
-
-    <div class="orizon-sidebar-section">
-        <span class="orizon-sidebar-section-title">Cadastros</span>
-
-        @foreach (var module in BasicRegistrationModule.All)
+        @if (User.Identity?.IsAuthenticated == true)
         {
-            var href = $"/Admin/Cadastros/{module.Key}";
-
-            <a class="orizon-sidebar-link @IsActive(href)"
-               href="@href">
-                <orizon-icon name="@module.Icon" size="20" class="orizon-sidebar-link-icon" />
-                <span class="orizon-sidebar-link-label">@module.Title</span>
+            <a class="orizon-sidebar-link @IsActive("/Admin/Dashboard")"
+               href="/Admin/Dashboard">
+                <orizon-icon name="house" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Dashboard</span>
+            </a>
+        }
+        else
+        {
+            <a class="orizon-sidebar-link @IsActive("/Account/Login")"
+               href="/Account/Login">
+                <orizon-icon name="power" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Entrar</span>
             </a>
         }
     </div>
 
-    <div class="orizon-sidebar-section">
-        <span class="orizon-sidebar-section-title">Gestão</span>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="orizon-sidebar-section">
+            <span class="orizon-sidebar-section-title">Cadastros</span>
 
-        <a class="orizon-sidebar-link @IsActive("/Admin/Users")"
-           href="/Admin/Users">
-            <orizon-icon name="users" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Usuários</span>
-        </a>
+            @foreach (var module in BasicRegistrationModule.All)
+            {
+                var href = $"/Admin/Cadastros/{module.Key}";
 
-        <a class="orizon-sidebar-link @IsActive("/Admin/Organization")"
-           href="/Admin/Organization">
-            <orizon-icon name="building" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Organização</span>
-        </a>
+                <a class="orizon-sidebar-link @IsActive(href)"
+                   href="@href">
+                    <orizon-icon name="@module.Icon" size="20" class="orizon-sidebar-link-icon" />
+                    <span class="orizon-sidebar-link-label">@module.Title</span>
+                </a>
+            }
+        </div>
 
-        <a class="orizon-sidebar-link @IsActive("/Admin/Settings")"
-           href="/Admin/Settings">
-            <orizon-icon name="gear" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Configurações</span>
-        </a>
-    </div>
+        <div class="orizon-sidebar-section">
+            <span class="orizon-sidebar-section-title">Gestão</span>
+
+            <a class="orizon-sidebar-link @IsActive("/Admin/Users")"
+               href="/Admin/Users">
+                <orizon-icon name="users" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Usuários</span>
+            </a>
+
+            <a class="orizon-sidebar-link @IsActive("/Admin/Organization")"
+               href="/Admin/Organization">
+                <orizon-icon name="building" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Organização</span>
+            </a>
+
+            <a class="orizon-sidebar-link @IsActive("/Admin/Settings")"
+               href="/Admin/Settings">
+                <orizon-icon name="gear" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Configurações</span>
+            </a>
+        </div>
+    }
 </nav>
 
 <div class="orizon-sidebar-footer">
-    <div class="orizon-sidebar-user">
-        <span class="orizon-sidebar-user-avatar" aria-hidden="true">OR</span>
-        <div class="orizon-sidebar-user-content">
-            <strong class="orizon-sidebar-user-name">Usuário Orizon</strong>
-            <span class="orizon-sidebar-user-role">Administrador</span>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="orizon-sidebar-user">
+            <span class="orizon-sidebar-user-avatar" aria-hidden="true">OR</span>
+            <div class="orizon-sidebar-user-content">
+                <strong class="orizon-sidebar-user-name">@User.Identity.Name</strong>
+                <span class="orizon-sidebar-user-role">Administrador</span>
+            </div>
         </div>
-    </div>
+
+        <form asp-controller="Account"
+              asp-action="Logout"
+              method="post"
+              class="orizon-inline-form">
+            @Html.AntiForgeryToken()
+            <orizon-button type="submit"
+                           variant="secondary"
+                           size="sm"
+                           icon="power">
+                Sair
+            </orizon-button>
+        </form>
+    }
 </div>

@@ -1,0 +1,44 @@
+@{
+    var pageTitle = ViewData["Title"]?.ToString();
+    var applicationName = ViewData["ApplicationName"]?.ToString() ?? "Distribuidora";
+
+    var fullTitle = string.IsNullOrWhiteSpace(pageTitle)
+        ? applicationName
+        : $"{pageTitle} | {applicationName}";
+}
+
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+    <title>@fullTitle</title>
+
+    <link rel="stylesheet"
+          href="~/_content/Orizon.UI/css/tokens.css"
+          asp-append-version="true" />
+    <link rel="stylesheet"
+          href="~/_content/Orizon.UI/css/base.css"
+          asp-append-version="true" />
+    <link rel="stylesheet"
+          href="~/_content/Orizon.UI/css/typography.css"
+          asp-append-version="true" />
+    <link rel="stylesheet"
+          href="~/_content/Orizon.UI/css/utilities.css"
+          asp-append-version="true" />
+    <link rel="stylesheet"
+          href="~/_content/Orizon.UI/css/orizon.css"
+          asp-append-version="true" />
+</head>
+<body>
+    <main class="orizon-admin-page" role="main">
+        @RenderBody()
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

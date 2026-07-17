@@ -15,12 +15,15 @@
 - [x] Build executado sem warnings.
 - [x] Aplicacao iniciou em Development.
 - [x] Documentacao da sprint atualizada.
-- [ ] Login autenticado validado manualmente.
-- [ ] CRUDs validados pelo navegador com usuario logado.
+- [x] Login autenticado validado.
+- [x] Logout por POST validado.
+- [x] Dashboard acessivel com administrador.
+- [x] Cadastros acessiveis com administrador.
+- [x] CRUDs principais validados com usuario logado.
 
 Pendencia real:
 
-A Sprint atual nao implementa `AccountController`/Login. As rotas protegidas redirecionam corretamente para `/Account/Login`, mas a URL retorna 404 porque o fluxo de login nao existe neste branch. A pendencia foi mantida documentada sem implementar Login, conforme restricao de escopo.
+Nao ha cadastro publico, recuperacao de senha ou confirmacao de e-mail nesta fase. Essas funcionalidades permanecem fora do escopo.
 
 Comandos de operacao:
 

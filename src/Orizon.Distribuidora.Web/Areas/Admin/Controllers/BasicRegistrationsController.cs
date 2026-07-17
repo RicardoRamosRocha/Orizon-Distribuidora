@@ -250,16 +250,57 @@ public sealed class BasicRegistrationsController : Controller
         return moduleKey switch
         {
             "categorias" => ApplyBasicFilters(dbContext.Categories.AsNoTracking(), companyId, search, isActive)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Description, null, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Description,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "subcategorias" => ApplyBasicFilters(dbContext.Subcategories.AsNoTracking(), companyId, search, isActive)
                 .Where(entity => categoryId == null || entity.CategoryId == categoryId)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Description, entity.Category!.Name, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Description,
+                    RelatedName = entity.Category!.Name,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "marcas" => ApplyBasicFilters(dbContext.Brands.AsNoTracking(), companyId, search, isActive)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Description, null, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Description,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "unidades-medida" => ApplyBasicFilters(dbContext.UnitsOfMeasure.AsNoTracking(), companyId, search, isActive)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Abbreviation, $"{entity.DecimalPlaces} casas decimais", null, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Abbreviation,
+                    Secondary = entity.AllowsFraction ? "Permite fração" : "Inteiro",
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "grupos-produtos" => ApplyBasicFilters(dbContext.ProductGroups.AsNoTracking(), companyId, search, isActive)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Description, null, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Description,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "fornecedores" => ApplySupplierFilters(companyId, search, isActive, type)
                 .Select(entity => new BasicRegistrationRowViewModel
                 {
@@ -283,13 +324,39 @@ public sealed class BasicRegistrationsController : Controller
                     CreatedAt = entity.CreatedAt
                 }),
             "depositos" => ApplyBasicFilters(dbContext.Warehouses.AsNoTracking(), companyId, search, isActive)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.IsDefault ? "Depósito padrão" : entity.Description, null, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.IsDefault ? "Depósito padrão" : entity.Description,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "localizacoes-internas" => ApplyBasicFilters(dbContext.InternalLocations.AsNoTracking(), companyId, search, isActive)
                 .Where(entity => warehouseId == null || entity.WarehouseId == warehouseId)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Description, entity.Warehouse!.Name, entity.IsActive, false, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Description,
+                    RelatedName = entity.Warehouse!.Name,
+                    IsActive = entity.IsActive,
+                    CreatedAt = entity.CreatedAt
+                }),
             "status-cadastro" => ApplyBasicFilters(dbContext.RegistrationStatuses.AsNoTracking(), companyId, search, isActive)
                 .Where(entity => isSystem == null || entity.IsSystem == isSystem)
-                .Select(entity => BasicRow(entity.Id, entity.Name, entity.Code, entity.Color, null, entity.IsActive, entity.IsSystem, entity.CreatedAt)),
+                .Select(entity => new BasicRegistrationRowViewModel
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Code = entity.Code,
+                    Secondary = entity.Color,
+                    IsActive = entity.IsActive,
+                    IsSystem = entity.IsSystem,
+                    CreatedAt = entity.CreatedAt
+                }),
             _ => throw new InvalidOperationException("Cadastro não encontrado.")
         };
     }
@@ -383,29 +450,6 @@ public sealed class BasicRegistrationsController : Controller
         }
 
         return query;
-    }
-
-    private static BasicRegistrationRowViewModel BasicRow(
-        Guid id,
-        string name,
-        string? code,
-        string? secondary,
-        string? relatedName,
-        bool isActive,
-        bool isSystem,
-        DateTimeOffset createdAt)
-    {
-        return new BasicRegistrationRowViewModel
-        {
-            Id = id,
-            Name = name,
-            Code = code,
-            Secondary = secondary,
-            RelatedName = relatedName,
-            IsActive = isActive,
-            IsSystem = isSystem,
-            CreatedAt = createdAt
-        };
     }
 
     private async Task ValidateRelationshipsAndDuplicatesAsync(
