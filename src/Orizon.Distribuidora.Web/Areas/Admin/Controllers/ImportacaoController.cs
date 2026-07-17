@@ -28,6 +28,7 @@ public sealed class ImportacaoController : Controller
     private readonly IValidadorDadosImportacaoService validadorDadosImportacaoService;
     private readonly IContextoValidacaoImportacaoService contextoValidacaoImportacaoService;
     private readonly IExecutorImportacaoProdutosService executorImportacaoProdutosService;
+    private readonly IExportacaoImportacaoService exportacaoImportacaoService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
@@ -39,7 +40,8 @@ public sealed class ImportacaoController : Controller
         IModeloImportacaoService modeloImportacaoService,
         IValidadorDadosImportacaoService validadorDadosImportacaoService,
         IContextoValidacaoImportacaoService contextoValidacaoImportacaoService,
-        IExecutorImportacaoProdutosService executorImportacaoProdutosService)
+        IExecutorImportacaoProdutosService executorImportacaoProdutosService,
+        IExportacaoImportacaoService exportacaoImportacaoService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
@@ -51,6 +53,7 @@ public sealed class ImportacaoController : Controller
         this.validadorDadosImportacaoService = validadorDadosImportacaoService;
         this.contextoValidacaoImportacaoService = contextoValidacaoImportacaoService;
         this.executorImportacaoProdutosService = executorImportacaoProdutosService;
+        this.exportacaoImportacaoService = exportacaoImportacaoService;
     }
 
     [HttpGet("")]
@@ -211,6 +214,14 @@ public sealed class ImportacaoController : Controller
     [HttpGet("Resultado")]
     public async Task<IActionResult> Resultado(Guid id,string? filtro,string? busca,int pagina=1,CancellationToken cancellationToken=default)
     {var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var result=await executorImportacaoProdutosService.ObterResultadoAsync(id,companyId,cancellationToken);if(result is null)return NotFound();IEnumerable<ResultadoExecucaoItem> query=result.Itens;query=filtro switch{"inseridos"=>query.Where(x=>x.Status==StatusLinhaImportacao.Inserida),"atualizados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Atualizada),"semAlteracao"=>query.Where(x=>x.Status==StatusLinhaImportacao.SemAlteracao),"ignorados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Ignorada),"bloqueados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Bloqueada),"falhas"=>query.Where(x=>x.Status==StatusLinhaImportacao.Falhou),_=>query};if(!string.IsNullOrWhiteSpace(busca))query=query.Where(x=>x.Linha.ToString()==busca||(x.Codigo?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Mensagem?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false));const int size=50;var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)size));pagina=Math.Clamp(pagina,1,pages);return View(new ImportacaoResultadoViewModel{Resultado=result,Itens=query.Skip((pagina-1)*size).Take(size).ToList(),Pagina=pagina,TotalPaginas=pages,Filtro=filtro,Busca=busca});}
+
+    [HttpGet("ExportarExcel")]
+    public async Task<IActionResult> ExportarExcel(Guid id,FiltroExportacaoImportacao filtro=FiltroExportacaoImportacao.Todos,CancellationToken cancellationToken=default)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var file=await exportacaoImportacaoService.ExportarExcelAsync(id,company,GetCurrentUserId(),filtro,cancellationToken);return File(file.Conteudo,file.ContentType,file.NomeArquivo);}catch(Exception ex) when(ex is KeyNotFoundException or UnauthorizedAccessException){return NotFound();}}
+
+    [HttpGet("ExportarCsv")]
+    public async Task<IActionResult> ExportarCsv(Guid id,FiltroExportacaoImportacao filtro=FiltroExportacaoImportacao.Todos,CancellationToken cancellationToken=default)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var file=await exportacaoImportacaoService.ExportarCsvAsync(id,company,GetCurrentUserId(),filtro,cancellationToken);return File(file.Conteudo,file.ContentType,file.NomeArquivo);}catch(Exception ex) when(ex is KeyNotFoundException or UnauthorizedAccessException){return NotFound();}}
 
     [HttpGet("Mapeamento")]
     public async Task<IActionResult> Mapeamento(Guid id, string token, string? aba, Guid? modeloId, CancellationToken cancellationToken)

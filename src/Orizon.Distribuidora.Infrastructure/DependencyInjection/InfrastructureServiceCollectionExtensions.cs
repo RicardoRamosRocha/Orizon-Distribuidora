@@ -70,6 +70,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddScoped<IImportacaoProdutosService, ImportacaoProdutosService>();
         services.AddScoped<IExecutorImportacaoProdutosService, ExecutorImportacaoProdutosService>();
+        services.AddScoped<IExportacaoImportacaoService, ExportacaoImportacaoService>();
         services.AddScoped<ILeitorExcelService, LeitorExcelService>();
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
         services.AddScoped<IValidadorDadosImportacaoService, ValidadorDadosImportacaoService>();
