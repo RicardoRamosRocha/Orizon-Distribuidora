@@ -36,6 +36,15 @@
   });
 
   root.addEventListener("click", function (event) {
+    const exportLink = event.target.closest("[data-grid-export]");
+    if (exportLink) {
+      event.preventDefault();
+      const params = new URLSearchParams(new FormData(form));
+      params.delete("Page"); params.delete("PageSize");
+      root.querySelectorAll("[data-column-toggle]:checked").forEach(x => params.append("columns", x.dataset.columnToggle));
+      location.href = `${location.pathname}/Export/${exportLink.dataset.gridExport}?${params}`;
+      return;
+    }
     const toggle = event.target.closest("[data-column-menu-toggle]");
     if (toggle) {
       const menu = root.querySelector("[data-column-menu]");

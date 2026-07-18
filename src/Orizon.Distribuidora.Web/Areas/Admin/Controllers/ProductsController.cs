@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Orizon.Distribuidora.Domain.Entities;
+using Orizon.Distribuidora.Application.Products;
 using Orizon.Distribuidora.Domain.Enums;
 using Orizon.Distribuidora.Infrastructure.Data;
 using Orizon.Distribuidora.Infrastructure.Identity;
@@ -24,15 +25,18 @@ public sealed class ProductsController : Controller
     private readonly ApplicationDbContext dbContext;
     private readonly ICurrentCompanyAccessor currentCompanyAccessor;
     private readonly IWebHostEnvironment environment;
+    private readonly IProductGridExportService gridExportService;
 
     public ProductsController(
         ApplicationDbContext dbContext,
         ICurrentCompanyAccessor currentCompanyAccessor,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IProductGridExportService gridExportService)
     {
         this.dbContext = dbContext;
         this.currentCompanyAccessor = currentCompanyAccessor;
         this.environment = environment;
+        this.gridExportService = gridExportService;
     }
 
     [HttpGet("")]
@@ -111,6 +115,28 @@ public sealed class ProductsController : Controller
                 IsActive = product.IsActive, ImagePath = product.ImagePath
             }).ToListAsync(cancellationToken);
         return Json(new { items, total, page = filter.Page, hasMore = filter.Page * filter.PageSize < total });
+    }
+
+    [HttpGet("Export/{format}")]
+    public async Task<IActionResult> Export(string format, [FromQuery] ProductFilterViewModel filter, [FromQuery] string[] columns, CancellationToken cancellationToken)
+    {
+        if (format is not ("xlsx" or "csv" or "pdf")) return BadRequest();
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        NormalizeFilter(filter);
+        var rows = await ApplySorting(ApplyFilters(dbContext.Products.AsNoTracking(), companyId, filter), filter)
+            .Take(10_000)
+            .Select(product => new ProductGridExportRow(
+                product.InternalCode, product.Name, product.Sku, product.Barcode,
+                product.ProductType == ProductType.Own ? "Proprio" : product.ProductType == ProductType.ThirdParty ? "Terceiro" : product.ProductType == ProductType.Service ? "Servico" : "Sob encomenda",
+                product.Category != null ? product.Category.Name : null,
+                product.Brand != null ? product.Brand.Name : null,
+                product.MainSupplier != null ? (product.MainSupplier.TradeName ?? product.MainSupplier.LegalName) : null,
+                product.UnitOfMeasure!.Abbreviation, product.CostPrice, product.SalePrice,
+                product.SalePrice > 0 ? Math.Round(((product.SalePrice - product.CostPrice) / product.SalePrice) * 100, 2) : 0,
+                product.MinimumStock, product.IsActive))
+            .ToListAsync(cancellationToken);
+        var exported = gridExportService.Export(format, rows, columns);
+        return File(exported.Content, exported.ContentType, $"produtos-{DateTime.UtcNow:yyyyMMdd-HHmm}.{exported.Extension}");
     }
 
     [HttpGet("GridPreference")]
