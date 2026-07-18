@@ -9,6 +9,7 @@ using Orizon.Distribuidora.Web.Areas.Admin.Models.Importacoes;
 using Orizon.Distribuidora.Web.Options;
 using Orizon.Distribuidora.Web.Services;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Orizon.Distribuidora.Web.Areas.Admin.Controllers;
 
@@ -22,19 +23,40 @@ public sealed class ImportacaoController : Controller
     private readonly ICurrentCompanyAccessor currentCompanyAccessor;
     private readonly ImportacaoUploadValidator uploadValidator;
     private readonly ImportacaoOptions options;
+    private readonly IMapeadorColunasService mapeadorColunasService;
+    private readonly IModeloImportacaoService modeloImportacaoService;
+    private readonly IValidadorDadosImportacaoService validadorDadosImportacaoService;
+    private readonly IContextoValidacaoImportacaoService contextoValidacaoImportacaoService;
+    private readonly IExecutorImportacaoProdutosService executorImportacaoProdutosService;
+    private readonly IExportacaoImportacaoService exportacaoImportacaoService;
+    private readonly IRollbackImportacaoService rollbackImportacaoService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
         ILeitorExcelService leitorExcelService,
         ICurrentCompanyAccessor currentCompanyAccessor,
         ImportacaoUploadValidator uploadValidator,
-        IOptions<ImportacaoOptions> options)
+        IOptions<ImportacaoOptions> options,
+        IMapeadorColunasService mapeadorColunasService,
+        IModeloImportacaoService modeloImportacaoService,
+        IValidadorDadosImportacaoService validadorDadosImportacaoService,
+        IContextoValidacaoImportacaoService contextoValidacaoImportacaoService,
+        IExecutorImportacaoProdutosService executorImportacaoProdutosService,
+        IExportacaoImportacaoService exportacaoImportacaoService,
+        IRollbackImportacaoService rollbackImportacaoService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
         this.currentCompanyAccessor = currentCompanyAccessor;
         this.uploadValidator = uploadValidator;
         this.options = options.Value;
+        this.mapeadorColunasService = mapeadorColunasService;
+        this.modeloImportacaoService = modeloImportacaoService;
+        this.validadorDadosImportacaoService = validadorDadosImportacaoService;
+        this.contextoValidacaoImportacaoService = contextoValidacaoImportacaoService;
+        this.executorImportacaoProdutosService = executorImportacaoProdutosService;
+        this.exportacaoImportacaoService = exportacaoImportacaoService;
+        this.rollbackImportacaoService = rollbackImportacaoService;
     }
 
     [HttpGet("")]
@@ -187,32 +209,117 @@ public sealed class ImportacaoController : Controller
         }
     }
 
+    [HttpPost("Executar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Executar(Guid id,CancellationToken cancellationToken)
+    {try{var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await executorImportacaoProdutosService.ExecutarAsync(id,companyId,GetCurrentUserId(),cancellationToken);return RedirectToAction(nameof(Resultado),new{id});}catch(ImportacaoExecucaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Resultado),new{id});}}
+
     [HttpGet("Resultado")]
-    public IActionResult Resultado()
+    public async Task<IActionResult> Resultado(Guid id,string? filtro,string? busca,int pagina=1,CancellationToken cancellationToken=default)
+    {var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var result=await executorImportacaoProdutosService.ObterResultadoAsync(id,companyId,cancellationToken);if(result is null)return NotFound();IEnumerable<ResultadoExecucaoItem> query=result.Itens;query=filtro switch{"inseridos"=>query.Where(x=>x.Status==StatusLinhaImportacao.Inserida),"atualizados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Atualizada),"semAlteracao"=>query.Where(x=>x.Status==StatusLinhaImportacao.SemAlteracao),"ignorados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Ignorada),"bloqueados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Bloqueada),"falhas"=>query.Where(x=>x.Status==StatusLinhaImportacao.Falhou),_=>query};if(!string.IsNullOrWhiteSpace(busca))query=query.Where(x=>x.Linha.ToString()==busca||(x.Codigo?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Mensagem?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false));const int size=50;var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)size));pagina=Math.Clamp(pagina,1,pages);return View(new ImportacaoResultadoViewModel{Resultado=result,Itens=query.Skip((pagina-1)*size).Take(size).ToList(),Pagina=pagina,TotalPaginas=pages,Filtro=filtro,Busca=busca});}
+
+    [HttpGet("ExportarExcel")]
+    public async Task<IActionResult> ExportarExcel(Guid id,FiltroExportacaoImportacao filtro=FiltroExportacaoImportacao.Todos,CancellationToken cancellationToken=default)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var file=await exportacaoImportacaoService.ExportarExcelAsync(id,company,GetCurrentUserId(),filtro,cancellationToken);return File(file.Conteudo,file.ContentType,file.NomeArquivo);}catch(Exception ex) when(ex is KeyNotFoundException or UnauthorizedAccessException){return NotFound();}}
+
+    [HttpGet("ExportarCsv")]
+    public async Task<IActionResult> ExportarCsv(Guid id,FiltroExportacaoImportacao filtro=FiltroExportacaoImportacao.Todos,CancellationToken cancellationToken=default)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var file=await exportacaoImportacaoService.ExportarCsvAsync(id,company,GetCurrentUserId(),filtro,cancellationToken);return File(file.Conteudo,file.ContentType,file.NomeArquivo);}catch(Exception ex) when(ex is KeyNotFoundException or UnauthorizedAccessException){return NotFound();}}
+
+    [HttpGet("Mapeamento")]
+    public async Task<IActionResult> Mapeamento(Guid id, string token, string? aba, Guid? modeloId, CancellationToken cancellationToken)
     {
-        return View();
+        if (!IsValidToken(token)) return RedirectToAction(nameof(Upload));
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        var historico = await historicoImportacaoService.ObterAsync(companyId, id, cancellationToken);
+        var path = GetTemporaryPath(token);
+        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
+        await using var input = System.IO.File.OpenRead(path);
+        var leitura = await leitorExcelService.LerAsync(new(input, historico.NomeArquivo, historico.TamanhoArquivoBytes), aba, 20, cancellationToken);
+        var planilha = leitura.AbaAtual!;
+        var modelos = await modeloImportacaoService.ListarAsync(companyId, GetCurrentUserId(), cancellationToken);
+        var modelo = modeloId.HasValue ? modelos.FirstOrDefault(x => x.Id == modeloId) : await modeloImportacaoService.EncontrarCompativelAsync(companyId, GetCurrentUserId(), planilha.Cabecalhos, cancellationToken);
+        var automatico = modelo is null ? await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, cancellationToken) : new MapeamentoColunasImportacao(modelo.Mapeamentos);
+        return View(new ImportacaoMapeamentoViewModel { ImportacaoId=id, TokenArquivo=token, NomeArquivo=historico.NomeArquivo, AbaSelecionada=leitura.AbaSelecionada, Cabecalhos=planilha.Cabecalhos, Amostra=planilha.Amostra.Select(x => new ImportacaoLinhaAmostraViewModel { NumeroLinha=x.NumeroLinha, Valores=x.Valores }).ToList(), Campos=CatalogoCamposProdutoImportacao.Campos, Mapeamentos=automatico.Colunas, Confiancas=automatico.Confiancas ?? new Dictionary<string,double>(), Modelos=modelos, ModeloCarregadoId=modelo?.Id });
+    }
+
+    [HttpPost("SalvarModelo")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SalvarModelo([FromBody] SalvarModeloImportacaoRequest request, CancellationToken cancellationToken)
+    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); var model = await modeloImportacaoService.SalvarAsync(companyId, GetCurrentUserId(), request.Nome, request.Padrao, request.Mapeamentos, request.Cabecalhos, cancellationToken); return Json(new { model.Id, model.Nome }); }
+
+    [HttpPost("ExcluirModelo/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExcluirModelo(Guid id, CancellationToken cancellationToken)
+    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); await modeloImportacaoService.ExcluirAsync(companyId, id, cancellationToken); return NoContent(); }
+
+    [HttpPost("ValidarMapeamento")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ValidarMapeamento([FromBody] SalvarModeloImportacaoRequest request) => Json(ValidadorMapeamentoColunas.Validar(request.Mapeamentos, request.Cabecalhos, request.Amostra));
+
+    [HttpPost("Validacao")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Validacao(ExecutarValidacaoImportacaoRequest request, CancellationToken cancellationToken)
+    {
+        if (!IsValidToken(request.TokenArquivo)) return RedirectToAction(nameof(Upload));
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        var historico = await historicoImportacaoService.ObterAsync(companyId, request.ImportacaoId, cancellationToken);
+        var path = GetTemporaryPath(request.TokenArquivo);
+        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
+        Dictionary<string,string>? mappings; try { mappings=JsonSerializer.Deserialize<Dictionary<string,string>>(request.MapeamentoJson); } catch(JsonException) { return BadRequest(); }
+        if(mappings is null) return BadRequest();
+        await using var input=System.IO.File.OpenRead(path);
+        var planilha=await leitorExcelService.LerAsync(new(input,historico.NomeArquivo,historico.TamanhoArquivoBytes),request.AbaSelecionada,10_000,cancellationToken);
+        var aba=planilha.AbaAtual!; var mapValidation=ValidadorMapeamentoColunas.Validar(mappings,aba.Cabecalhos); if(!mapValidation.Valido)return BadRequest("Mapeamento inválido.");
+        var options=new OpcoesValidacaoImportacao(request.InserirNovos,request.AtualizarExistentes,request.IgnorarVaziosAtualizacao,request.PermitirImportacaoParcial,request.BloquearComQualquerErro,true);
+        var context=await contextoValidacaoImportacaoService.PrepararAsync(request.ImportacaoId,companyId,GetCurrentUserId(),aba.Amostra,new(mappings),options,cancellationToken);
+        var result=await validadorDadosImportacaoService.ValidarAsync(context,cancellationToken);
+        if(request.PersistirResultado) await historicoImportacaoService.SalvarValidacaoAsync(companyId,request.ImportacaoId,GetCurrentUserId(),result,options,cancellationToken);
+        IEnumerable<ResultadoValidacaoLinha> query=result.Linhas;
+        query=request.Filtro switch { "validas"=>query.Where(x=>x.PodeImportar),"novas"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Inserir),"atualizacoes"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Atualizar),"avisos"=>query.Where(x=>x.Avisos.Count>0),"erros"=>query.Where(x=>x.Erros.Count>0),"duplicadas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Duplicada),"ignoradas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Ignorada),_=>query};
+        if(!string.IsNullOrWhiteSpace(request.Busca)){var term=request.Busca.Trim();query=query.Where(x=>x.NumeroLinha.ToString()==term||(x.CodigoProduto?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||x.Erros.Concat(x.Avisos).Any(e=>e.Mensagem.Contains(term,StringComparison.OrdinalIgnoreCase)));}
+        const int pageSize=50; var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)pageSize));request.Pagina=Math.Clamp(request.Pagina,1,pages);
+        return View(new ImportacaoValidacaoViewModel{ImportacaoId=request.ImportacaoId,NomeArquivo=historico.NomeArquivo,AbaSelecionada=aba.Nome,Resultado=result,Linhas=query.Skip((request.Pagina-1)*pageSize).Take(pageSize).ToList(),Pagina=request.Pagina,TotalPaginas=pages,Filtro=request.Filtro,Busca=request.Busca,Request=request});
     }
 
     [HttpGet("Historico")]
-    public async Task<IActionResult> Historico()
-    {
-        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
-        var historico = await historicoImportacaoService.ListarAsync(companyId);
-        var model = historico
-            .Select(item => new ImportacaoHistoricoResumoViewModel
-            {
-                Id = item.Id,
-                NomeArquivo = item.NomeArquivo,
-                Status = item.Status,
-                TotalLinhas = item.TotalLinhas,
-                LinhasComErro = item.LinhasComErro,
-                LinhasImportadas = item.LinhasImportadas,
-                CriadoEm = item.CreatedAt
-            })
-            .ToList();
+    public async Task<IActionResult> Historico([FromQuery] ConsultaHistoricoImportacao consulta,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var page=await historicoImportacaoService.ConsultarAsync(company,consulta,cancellationToken);return View(new HistoricoImportacaoViewModel{Consulta=consulta,Pagina=page});}
 
-        return View(model);
-    }
+    [HttpGet("Detalhes/{id:guid}")]
+    public async Task<IActionResult> Detalhes(Guid id,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var details=await historicoImportacaoService.ObterDetalhesAsync(company,id,cancellationToken);if(details is null)return NotFound();return View(new HistoricoImportacaoDetalhesViewModel{Detalhes=details});}
+
+    [HttpGet("Dashboard")]
+    public async Task<IActionResult> Dashboard(DateTimeOffset? inicio,DateTimeOffset? fim,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);return Json(await historicoImportacaoService.ObterDashboardAsync(company,inicio,fim,cancellationToken));}
+
+    [HttpPost("Duplicar/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Duplicar(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await historicoImportacaoService.DuplicarConfiguracaoAsync(company,id,GetCurrentUserId(),cancellationToken);TempData["Success"]="Configuração duplicada. Selecione o novo modelo no próximo mapeamento.";return RedirectToAction(nameof(Upload));}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpPost("Excluir/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Excluir(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await historicoImportacaoService.ExcluirHistoricoAsync(company,id,GetCurrentUserId(),cancellationToken);TempData["Success"]="Histórico excluído com auditoria.";return RedirectToAction(nameof(Historico));}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpGet("Rollback/{id:guid}")]
+    public async Task<IActionResult> Rollback(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);return View(new RollbackConfirmacaoViewModel{Analise=await rollbackImportacaoService.AnalisarAsync(id,company,GetCurrentUserId(),cancellationToken)});}catch(UnauthorizedAccessException){return NotFound();}catch(RollbackImportacaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpPost("ExecutarRollback/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExecutarRollback(Guid id,string confirmacao,bool permitirParcial,CancellationToken cancellationToken)
+    {if(!string.Equals(confirmacao,"CONFIRMAR",StringComparison.Ordinal)) {TempData["Error"]="Digite CONFIRMAR para autorizar o rollback.";return RedirectToAction(nameof(Rollback),new{id});}try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await rollbackImportacaoService.ExecutarAsync(id,company,GetCurrentUserId(),permitirParcial,cancellationToken);return RedirectToAction(nameof(RollbackResultado),new{id});}catch(UnauthorizedAccessException){return NotFound();}catch(RollbackImportacaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Rollback),new{id});}}
+
+    [HttpGet("RollbackResultado/{id:guid}")]
+    public async Task<IActionResult> RollbackResultado(Guid id,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var result=await rollbackImportacaoService.ObterResultadoAsync(id,company,cancellationToken);return result is null?NotFound():View(new RollbackResultadoViewModel{Resultado=result});}
+    [HttpGet("RollbackExcel/{id:guid}")]
+    public async Task<IActionResult> RollbackExcel(Guid id,CancellationToken cancellationToken){var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var f=await rollbackImportacaoService.ExportarExcelAsync(id,company,cancellationToken);return File(f.Conteudo,f.ContentType,f.NomeArquivo);}
+    [HttpGet("RollbackCsv/{id:guid}")]
+    public async Task<IActionResult> RollbackCsv(Guid id,CancellationToken cancellationToken){var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var f=await rollbackImportacaoService.ExportarCsvAsync(id,company,cancellationToken);return File(f.Conteudo,f.ContentType,f.NomeArquivo);}
 
     private ImportacaoUploadViewModel BuildUploadModel()
     {

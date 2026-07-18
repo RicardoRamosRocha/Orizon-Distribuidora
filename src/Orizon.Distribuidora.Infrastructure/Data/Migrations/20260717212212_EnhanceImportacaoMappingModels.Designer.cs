@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orizon.Distribuidora.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Orizon.Distribuidora.Infrastructure.Data;
 namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717212212_EnhanceImportacaoMappingModels")]
+    partial class EnhanceImportacaoMappingModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -398,11 +401,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<string>("Coluna")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
@@ -439,9 +437,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(1000)");
 
                     b.Property<int?>("NumeroLinha")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Severidade")
                         .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
@@ -488,12 +483,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("FalhasExecucao")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("FalhasRollback")
-                        .HasColumnType("integer");
-
                     b.Property<DateTimeOffset?>("FinalizadoEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -505,19 +494,7 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<int>("ItensBloqueados")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LinhasComAviso")
-                        .HasColumnType("integer");
-
                     b.Property<int>("LinhasComErro")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LinhasDuplicadas")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LinhasIgnoradas")
                         .HasColumnType("integer");
 
                     b.Property<int>("LinhasImportadas")
@@ -538,46 +515,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<string>("ObservacoesRollback")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("OpcoesValidacaoJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<int>("ProdutosAtualizados")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosAtualizaveis")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosBloqueadosRollback")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosExistentes")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosInseridos")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosNovos")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosRemovidosRollback")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosRestauradosRollback")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("RollbackFinalizadoEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("RollbackIniciadoEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("SemAlteracao")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -586,9 +523,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 
                     b.Property<int>("TipoArquivo")
                         .HasColumnType("integer");
-
-                    b.Property<Guid?>("TokenExecucao")
-                        .HasColumnType("uuid");
 
                     b.Property<int>("TotalLinhas")
                         .HasColumnType("integer");
@@ -599,22 +533,9 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("UsuarioExecutorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UsuarioRollbackId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UsuarioValidacaoId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ModeloImportacaoId");
-
-                    b.HasIndex("TokenExecucao")
-                        .IsUnique()
-                        .HasFilter("\"TokenExecucao\" IS NOT NULL");
 
                     b.HasIndex("CompanyId", "CreatedAt");
 
@@ -629,12 +550,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AlteracoesAplicadasJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<Guid?>("ChaveIdempotencia")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("CompanyId")
@@ -659,9 +574,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset?>("ExecutadoEm")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("ImportacaoHistoricoId")
                         .HasColumnType("uuid");
 
@@ -670,28 +582,11 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<string>("MensagemExecucao")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("MensagemRollback")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<int>("NumeroLinha")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("OperacaoExecucao")
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("ProdutoId")
                         .HasColumnType("uuid");
-
-                    b.Property<bool>("Revertido")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("RollbackExecutadoEm")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -708,17 +603,11 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 
                     b.HasIndex("ProdutoId");
 
-                    b.HasIndex("CompanyId", "ChaveIdempotencia")
-                        .IsUnique()
-                        .HasFilter("\"ChaveIdempotencia\" IS NOT NULL");
-
                     b.HasIndex("CompanyId", "Status");
 
                     b.HasIndex("CompanyId", "ImportacaoHistoricoId", "NumeroLinha")
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = FALSE");
-
-                    b.HasIndex("CompanyId", "ImportacaoHistoricoId", "Status");
 
                     b.ToTable("ImportacaoItens", (string)null);
                 });

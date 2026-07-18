@@ -22,6 +22,9 @@ public sealed class ImportacaoHistoricoConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.LinhasComErro).IsRequired();
         builder.Property(entity => entity.LinhasImportadas).IsRequired();
         builder.Property(entity => entity.Observacoes).HasMaxLength(2000);
+        builder.Property(entity => entity.OpcoesValidacaoJson).HasColumnType("jsonb");
+        builder.Property(entity => entity.ObservacoesRollback).HasMaxLength(2000);
+        builder.Property(entity => entity.TokenExecucao);
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
 
@@ -47,6 +50,7 @@ public sealed class ImportacaoHistoricoConfiguration : IEntityTypeConfiguration<
 
         builder.HasIndex(entity => new { entity.CompanyId, entity.CreatedAt });
         builder.HasIndex(entity => new { entity.CompanyId, entity.Status });
+        builder.HasIndex(entity => entity.TokenExecucao).IsUnique().HasFilter("\"TokenExecucao\" IS NOT NULL");
         builder.HasIndex(entity => new { entity.CompanyId, entity.NomeArquivo });
 
         builder.HasQueryFilter(entity => !entity.IsDeleted);
@@ -66,6 +70,11 @@ public sealed class ImportacaoItemConfiguration : IEntityTypeConfiguration<Impor
         builder.Property(entity => entity.Status).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.DadosOriginaisJson).HasColumnType("jsonb").IsRequired();
         builder.Property(entity => entity.DadosNormalizadosJson).HasColumnType("jsonb");
+        builder.Property(entity => entity.OperacaoExecucao).HasConversion<int>().IsRequired();
+        builder.Property(entity => entity.MensagemExecucao).HasMaxLength(1000);
+        builder.Property(entity => entity.MensagemRollback).HasMaxLength(1000);
+        builder.Property(entity => entity.AlteracoesAplicadasJson).HasColumnType("jsonb");
+        builder.Property(entity => entity.ChaveIdempotencia);
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
 
@@ -88,6 +97,8 @@ public sealed class ImportacaoItemConfiguration : IEntityTypeConfiguration<Impor
             .IsUnique()
             .HasFilter("\"IsDeleted\" = FALSE");
         builder.HasIndex(entity => new { entity.CompanyId, entity.Status });
+        builder.HasIndex(entity => new { entity.CompanyId, entity.ImportacaoHistoricoId, entity.Status });
+        builder.HasIndex(entity => new { entity.CompanyId, entity.ChaveIdempotencia }).IsUnique().HasFilter("\"ChaveIdempotencia\" IS NOT NULL");
 
         builder.HasQueryFilter(entity => !entity.IsDeleted);
     }
@@ -105,6 +116,8 @@ public sealed class ImportacaoErroConfiguration : IEntityTypeConfiguration<Impor
         builder.Property(entity => entity.Coluna).HasMaxLength(120);
         builder.Property(entity => entity.ValorOriginal).HasMaxLength(1000);
         builder.Property(entity => entity.Mensagem).HasMaxLength(1000).IsRequired();
+        builder.Property(entity => entity.Codigo).HasMaxLength(100).IsRequired();
+        builder.Property(entity => entity.Severidade).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
 
@@ -132,6 +145,9 @@ public sealed class ModeloImportacaoConfiguration : IEntityTypeConfiguration<Mod
         builder.Property(entity => entity.TipoArquivo).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.MapeamentoColunasJson).HasColumnType("jsonb").IsRequired();
         builder.Property(entity => entity.Ativo).HasDefaultValue(true).IsRequired();
+        builder.Property(entity => entity.UsuarioId);
+        builder.Property(entity => entity.AssinaturaColunas).HasMaxLength(2000).HasDefaultValue("").IsRequired();
+        builder.Property(entity => entity.Padrao).HasDefaultValue(false).IsRequired();
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
 

@@ -1,19 +1,10 @@
-@{
-    ViewData["Title"] = "Resultado da Importação";
-    ViewData["ApplicationName"] = "Distribuidora";
-}
-
-<header class="orizon-page-header">
-    <div>
-        <h1 class="orizon-page-title">Resultado da Importação</h1>
-        <p class="orizon-page-description">
-            Resumo do processamento e inconsistências encontradas.
-        </p>
-    </div>
-</header>
-
-<orizon-card title="Resultado">
-    <orizon-empty-state icon="check-circle"
-                        title="Nenhum processamento executado"
-                        description="Os resultados serão exibidos após a importação." />
-</orizon-card>
+@model ImportacaoResultadoViewModel
+@using Orizon.Distribuidora.Application.Importacoes
+@{ViewData["Title"]="Resultado da Importação";ViewData["ApplicationName"]="Distribuidora";}
+@section Styles{<style>.result-cards{display:grid;grid-template-columns:repeat(7,1fr);gap:1rem;margin:1rem 0}.result-card{border:1px solid #e2e8f0;border-radius:12px;padding:1rem;background:#fff}.result-card b{display:block;font-size:1.5rem}.result-filters{display:flex;gap:.5rem;flex-wrap:wrap}.result-filters a{border:1px solid #cbd5e1;border-radius:999px;padding:.4rem .7rem;text-decoration:none}.result-filters a.active{background:#1d4ed8;color:#fff}.result-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;flex-wrap:wrap}@@media(max-width:1000px){.result-cards{grid-template-columns:repeat(3,1fr)}}</style>}
+<header class="orizon-page-header"><div><h1 class="orizon-page-title">Resultado da Importação</h1><p class="orizon-page-description">Execução @Model.Resultado.StatusFinal concluída em @Model.Resultado.Duracao.TotalSeconds.ToString("0.0") segundos.</p></div><div class="result-actions"><a class="btn btn-primary" href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId})">Exportar Excel</a><a class="btn btn-secondary" href="@Url.Action("ExportarCsv",new{id=Model.Resultado.ImportacaoId})">Exportar CSV</a></div></header>
+@if(TempData["Error"] is string error){<div class="alert alert-danger">@error</div>}
+<div class="result-cards"><div class="result-card"><span>Processados</span><b>@Model.Resultado.TotalProcessado</b></div><div class="result-card"><span>Inseridos</span><b>@Model.Resultado.Inseridos</b></div><div class="result-card"><span>Atualizados</span><b>@Model.Resultado.Atualizados</b></div><div class="result-card"><span>Sem alteração</span><b>@Model.Resultado.SemAlteracao</b></div><div class="result-card"><span>Ignorados</span><b>@Model.Resultado.Ignorados</b></div><div class="result-card"><span>Bloqueados</span><b>@Model.Resultado.Bloqueados</b></div><div class="result-card"><span>Falhas</span><b>@Model.Resultado.Falhas</b></div></div>
+<orizon-card title="Itens processados"><form method="get" asp-action="Resultado"><input type="hidden" name="id" value="@Model.Resultado.ImportacaoId"><div class="result-filters">@foreach(var f in new[]{("","Todos"),("inseridos","Inseridos"),("atualizados","Atualizados"),("semAlteracao","Sem alteração"),("ignorados","Ignorados"),("bloqueados","Bloqueados"),("falhas","Falhas")}){<a class="@(Model.Filtro==f.Item1?"active":"")" href="@Url.Action("Resultado",new{id=Model.Resultado.ImportacaoId,filtro=f.Item1,busca=Model.Busca})">@f.Item2</a>}<input class="form-control" style="max-width:280px" name="busca" value="@Model.Busca" placeholder="Linha, código, descrição ou mensagem"><button class="btn btn-secondary">Buscar</button></div></form><div style="overflow:auto;margin-top:1rem"><table class="table"><thead><tr><th>Linha</th><th>Código</th><th>Descrição</th><th>Operação</th><th>Resultado</th><th>Produto</th><th>Mensagem</th></tr></thead><tbody>@foreach(var i in Model.Itens){<tr><td>@i.Linha</td><td>@i.Codigo</td><td>@i.Descricao</td><td>@i.Operacao</td><td>@i.Status</td><td>@if(i.ProdutoId.HasValue){<a href="@Url.Action("Edit","Products",new{id=i.ProdutoId})">@i.ProdutoId</a>}</td><td>@i.Mensagem</td></tr>}</tbody></table></div><div style="text-align:center">Página @Model.Pagina de @Model.TotalPaginas @if(Model.Pagina>1){<a class="btn btn-secondary" href="@Url.Action("Resultado",new{id=Model.Resultado.ImportacaoId,filtro=Model.Filtro,busca=Model.Busca,pagina=Model.Pagina-1})">Anterior</a>} @if(Model.Pagina<Model.TotalPaginas){<a class="btn btn-secondary" href="@Url.Action("Resultado",new{id=Model.Resultado.ImportacaoId,filtro=Model.Filtro,busca=Model.Busca,pagina=Model.Pagina+1})">Próxima</a>}</div></orizon-card>
+<div class="result-actions"><a class="btn btn-secondary" href="@Url.Action("Historico")">Voltar ao histórico</a><a class="btn btn-primary" href="@Url.Action("Upload")">Nova importação</a></div>
+<orizon-card title="Exportação rápida"><div class="result-actions" style="justify-content:flex-start"><a href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId,filtro=FiltroExportacaoImportacao.Erros})">Somente erros</a><a href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId,filtro=FiltroExportacaoImportacao.Bloqueados})">Somente bloqueados</a><a href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId,filtro=FiltroExportacaoImportacao.Inseridos})">Somente importados</a><a href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId,filtro=FiltroExportacaoImportacao.Atualizados})">Somente atualizados</a><a href="@Url.Action("ExportarExcel",new{id=Model.Resultado.ImportacaoId,filtro=FiltroExportacaoImportacao.Todos})">Exportar tudo</a></div></orizon-card>

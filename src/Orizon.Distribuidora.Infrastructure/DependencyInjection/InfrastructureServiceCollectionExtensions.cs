@@ -69,9 +69,15 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IImportacaoProdutosService, ImportacaoProdutosService>();
+        services.AddScoped<IExecutorImportacaoProdutosService, ExecutorImportacaoProdutosService>();
+        services.AddScoped<IExportacaoImportacaoService, ExportacaoImportacaoService>();
+        services.AddScoped<IRollbackImportacaoService, RollbackImportacaoService>();
         services.AddScoped<ILeitorExcelService, LeitorExcelService>();
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
+        services.AddScoped<IValidadorDadosImportacaoService, ValidadorDadosImportacaoService>();
+        services.AddScoped<IContextoValidacaoImportacaoService, ContextoValidacaoImportacaoService>();
         services.AddScoped<IMapeadorColunasService, MapeadorColunasService>();
+        services.AddScoped<IModeloImportacaoService, ModeloImportacaoService>();
         services.AddScoped<IHistoricoImportacaoService, HistoricoImportacaoService>();
 
         return services;

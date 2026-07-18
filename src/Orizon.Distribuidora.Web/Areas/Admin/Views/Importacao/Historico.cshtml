@@ -1,52 +1,11 @@
-@model IReadOnlyList<ImportacaoHistoricoResumoViewModel>
-
-@{
-    ViewData["Title"] = "Histórico de Importações";
-    ViewData["ApplicationName"] = "Distribuidora";
-}
-
-<header class="orizon-page-header">
-    <div>
-        <h1 class="orizon-page-title">Histórico de Importações</h1>
-        <p class="orizon-page-description">
-            Rastreio das importações de produtos realizadas pela empresa.
-        </p>
-    </div>
-</header>
-
-<orizon-card title="Importações registradas">
-    @if (Model.Count == 0)
-    {
-        <orizon-empty-state icon="history"
-                            title="Nenhum histórico encontrado"
-                            description="Os registros serão criados quando o processamento for habilitado." />
-    }
-    else
-    {
-        <orizon-table>
-            <thead>
-                <tr>
-                    <th>Arquivo</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Importadas</th>
-                    <th>Erros</th>
-                    <th>Criado em</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                    <tr>
-                        <td>@item.NomeArquivo</td>
-                        <td>@item.Status</td>
-                        <td>@item.TotalLinhas</td>
-                        <td>@item.LinhasImportadas</td>
-                        <td>@item.LinhasComErro</td>
-                        <td>@item.CriadoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
-                    </tr>
-                }
-            </tbody>
-        </orizon-table>
-    }
-</orizon-card>
+@model HistoricoImportacaoViewModel
+@using Orizon.Distribuidora.Domain.Enums
+@{ViewData["Title"]="Histórico Premium";ViewData["ApplicationName"]="Distribuidora";var q=Model.Consulta;}
+@section Styles{<style>.history-cards{display:grid;grid-template-columns:repeat(8,1fr);gap:.8rem;margin:1rem 0}.history-card{padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:#fff}.history-card b{display:block;font-size:1.35rem}.history-filters{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem}.history-filters input,.history-filters select{width:100%;padding:.55rem;border:1px solid #cbd5e1;border-radius:8px}.charts{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.chart-box{height:280px}.status-badge{padding:.25rem .5rem;border-radius:99px;background:#e2e8f0;font-size:.75rem}.status-badge.ok{background:#dcfce7;color:#166534}.status-badge.error{background:#fee2e2;color:#991b1b}.actions-menu{display:flex;gap:.4rem;flex-wrap:wrap}.actions-menu a,.actions-menu button{font-size:.78rem}.pagination{display:flex;justify-content:center;gap:.7rem;align-items:center;margin-top:1rem}@@media(max-width:1200px){.history-cards{grid-template-columns:repeat(4,1fr)}.history-filters{grid-template-columns:repeat(3,1fr)}}@@media(max-width:700px){.history-cards,.history-filters,.charts{grid-template-columns:1fr 1fr}}</style>}
+<header class="orizon-page-header"><div><h1 class="orizon-page-title">Central de Importações</h1><p class="orizon-page-description">Consulte, audite e exporte todas as importações da empresa.</p></div><div style="display:flex;gap:.5rem"><input id="rollbackId" class="form-control" placeholder="ID para rollback"><button type="button" class="btn btn-danger" onclick="const id=document.querySelector('#rollbackId').value;if(id)location.href='@Url.Action("Rollback")/'+id">Executar Rollback</button><a class="btn btn-primary" href="@Url.Action("Upload")">Nova importação</a></div></header>
+@if(TempData["Success"] is string success){<div class="alert alert-success">@success</div>}@if(TempData["Error"] is string error){<div class="alert alert-danger">@error</div>}
+<div class="history-cards"><div class="history-card"><span>Importações</span><b>@Model.Pagina.Indicadores.TotalImportacoes</b></div><div class="history-card"><span>Importados</span><b>@Model.Pagina.Indicadores.ProdutosImportados</b></div><div class="history-card"><span>Atualizados</span><b>@Model.Pagina.Indicadores.ProdutosAtualizados</b></div><div class="history-card"><span>Falhas</span><b>@Model.Pagina.Indicadores.Falhas</b></div><div class="history-card"><span>Tempo médio</span><b>@Model.Pagina.Indicadores.TempoMedio.TotalSeconds.ToString("0.0")s</b></div><div class="history-card"><span>Última</span><b>@(Model.Pagina.Indicadores.UltimaImportacao?.ToLocalTime().ToString("dd/MM HH:mm")??"—")</b></div><div class="history-card"><span>Maior</span><b>@Model.Pagina.Indicadores.MaiorImportacao linhas</b></div><div class="history-card"><span>Mais ativo</span><b>@(Model.Pagina.Indicadores.UsuarioMaisAtivo??"—")</b></div></div>
+<orizon-card title="Filtros"><form method="get" id="historyForm"><input type="hidden" name="Pagina" value="1"><div class="history-filters"><label>Pesquisa<input name="Pesquisa" id="instantSearch" value="@q.Pesquisa" placeholder="Arquivo, usuário ou código"></label><label>Início<input type="date" name="Inicio" value="@q.Inicio?.ToString("yyyy-MM-dd")"></label><label>Fim<input type="date" name="Fim" value="@q.Fim?.ToString("yyyy-MM-dd")"></label><label>Usuário<select name="UsuarioId"><option value="">Todos</option>@foreach(var u in Model.Pagina.Usuarios){<option value="@u.Id" selected="@(q.UsuarioId==u.Id)">@u.Nome</option>}</select></label><label>Arquivo<input name="Arquivo" value="@q.Arquivo"></label><label>Status<select name="Status"><option value="">Todos</option>@foreach(var s in Enum.GetValues<StatusImportacao>()){<option value="@s" selected="@(q.Status==s)">@s</option>}</select></label><label>Modelo<select name="ModeloId"><option value="">Todos</option>@foreach(var m in Model.Pagina.Modelos){<option value="@m.Id" selected="@(q.ModeloId==m.Id)">@m.Nome</option>}</select></label><label>Falhas<select name="PossuiFalhas"><option value="">Todos</option><option value="true" selected="@(q.PossuiFalhas==true)">Com falhas</option><option value="false" selected="@(q.PossuiFalhas==false)">Sem falhas</option></select></label><label>Avisos<select name="PossuiAvisos"><option value="">Todos</option><option value="true" selected="@(q.PossuiAvisos==true)">Com avisos</option><option value="false" selected="@(q.PossuiAvisos==false)">Sem avisos</option></select></label><label>Bloqueios<select name="PossuiBloqueios"><option value="">Todos</option><option value="true" selected="@(q.PossuiBloqueios==true)">Com bloqueios</option><option value="false" selected="@(q.PossuiBloqueios==false)">Sem bloqueios</option></select></label><label>Por página<select name="TamanhoPagina">@foreach(var n in new[]{25,50,100,200}){<option value="@n" selected="@(q.TamanhoPagina==n)">@n</option>}</select></label><label>Ordenar<select name="OrdenarPor">@foreach(var o in new[]{("data","Data"),("usuario","Usuário"),("arquivo","Arquivo"),("inseridos","Inseridos"),("falhas","Falhas"),("duracao","Duração")}){<option value="@o.Item1" selected="@(q.OrdenarPor==o.Item1)">@o.Item2</option>}</select></label><label>Direção<select name="Descendente"><option value="true" selected="@q.Descendente">Decrescente</option><option value="false" selected="@(!q.Descendente)">Crescente</option></select></label><div style="align-self:end"><button class="btn btn-primary">Aplicar filtros</button> <a class="btn btn-secondary" href="@Url.Action("Historico")">Limpar</a></div></div></form></orizon-card>
+<div class="charts"><orizon-card title="Importações por dia"><div class="chart-box"><canvas id="chartDay"></canvas></div></orizon-card><orizon-card title="Produtos importados por mês"><div class="chart-box"><canvas id="chartProducts"></canvas></div></orizon-card><orizon-card title="Falhas por categoria"><div class="chart-box"><canvas id="chartFailures"></canvas></div></orizon-card><orizon-card title="Tempo médio por mês"><div class="chart-box"><canvas id="chartTime"></canvas></div></orizon-card></div>
+<orizon-card title="Importações"><div style="overflow:auto"><table class="table"><thead><tr><th>Arquivo</th><th>Empresa / usuário</th><th>Datas / duração</th><th>Linhas</th><th>Inseridos</th><th>Atualizados</th><th>Ignorados</th><th>Falhas / bloqueios</th><th>Status</th><th>Modelo</th><th>Ações</th></tr></thead><tbody>@foreach(var i in Model.Pagina.Itens){<tr><td><strong>@i.Arquivo</strong><small style="display:block">@i.Id</small></td><td>@i.Empresa<small style="display:block">@i.Usuario</small></td><td>@i.DataImportacao.ToLocalTime().ToString("dd/MM/yyyy HH:mm")<small style="display:block">Execução: @(i.DataExecucao?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")??"—") · @(i.Duracao?.TotalSeconds.ToString("0.0")??"0")s</small></td><td>@i.TotalLinhas</td><td>@i.Inseridos</td><td>@i.Atualizados</td><td>@i.Ignorados</td><td>@i.Falhas / @i.Bloqueados</td><td><span class="status-badge @(i.Falhas>0?"error":"ok")">@i.Status</span></td><td>@(i.Modelo??"—")</td><td><div class="actions-menu"><a class="btn btn-secondary" href="@Url.Action("Detalhes",new{id=i.Id})">Visualizar</a><a href="@Url.Action("ExportarExcel",new{id=i.Id})">Excel</a><a href="@Url.Action("ExportarCsv",new{id=i.Id})">CSV</a><form method="post" asp-action="Duplicar" asp-route-id="@i.Id">@Html.AntiForgeryToken()<button>Duplicar</button></form><form method="post" asp-action="Excluir" asp-route-id="@i.Id" onsubmit="return confirm('Excluir somente este histórico? Os produtos serão preservados.')">@Html.AntiForgeryToken()<button class="text-danger">Excluir</button></form></div></td></tr>}</tbody></table></div>@if(Model.Pagina.TotalRegistros==0){<p>Nenhuma importação encontrada.</p>}<div class="pagination">@if(Model.Pagina.Pagina>1){<a class="btn btn-secondary page-link" data-page="@(Model.Pagina.Pagina-1)">Anterior</a>}<span>Página @Model.Pagina.Pagina de @Model.Pagina.TotalPaginas · @Model.Pagina.TotalRegistros registros</span>@if(Model.Pagina.Pagina<Model.Pagina.TotalPaginas){<a class="btn btn-secondary page-link" data-page="@(Model.Pagina.Pagina+1)">Próxima</a>}</div></orizon-card>
+@section Scripts{<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script>let timer;document.querySelector('#instantSearch').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>document.querySelector('#historyForm').submit(),450)});document.querySelectorAll('.page-link').forEach(x=>x.onclick=()=>{document.querySelector('[name=Pagina]').value=x.dataset.page;document.querySelector('#historyForm').submit()});fetch('@Url.Action("Dashboard")').then(x=>x.json()).then(d=>{const draw=(id,points,color,type='bar')=>new Chart(document.querySelector(id),{type,data:{labels:points.map(x=>x.rotulo),datasets:[{data:points.map(x=>x.valor),backgroundColor:color,borderColor:color}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});draw('#chartDay',d.importacoesPorDia,'#2563eb','line');draw('#chartProducts',d.produtosPorMes,'#16a34a');draw('#chartFailures',d.falhasPorCategoria,'#dc2626');draw('#chartTime',d.tempoMedioPorMes,'#7c3aed','line')});</script>}

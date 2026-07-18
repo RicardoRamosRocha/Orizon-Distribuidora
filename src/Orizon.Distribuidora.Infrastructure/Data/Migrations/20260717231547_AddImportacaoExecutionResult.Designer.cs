@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orizon.Distribuidora.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Orizon.Distribuidora.Infrastructure.Data;
 namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717231547_AddImportacaoExecutionResult")]
+    partial class AddImportacaoExecutionResult
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -491,9 +494,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                     b.Property<int>("FalhasExecucao")
                         .HasColumnType("integer");
 
-                    b.Property<int>("FalhasRollback")
-                        .HasColumnType("integer");
-
                     b.Property<DateTimeOffset?>("FinalizadoEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -538,10 +538,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<string>("ObservacoesRollback")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
                     b.Property<string>("OpcoesValidacaoJson")
                         .HasColumnType("jsonb");
 
@@ -549,9 +545,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("ProdutosAtualizaveis")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosBloqueadosRollback")
                         .HasColumnType("integer");
 
                     b.Property<int>("ProdutosExistentes")
@@ -562,18 +555,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 
                     b.Property<int>("ProdutosNovos")
                         .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosRemovidosRollback")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutosRestauradosRollback")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("RollbackFinalizadoEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("RollbackIniciadoEm")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("SemAlteracao")
                         .HasColumnType("integer");
@@ -600,9 +581,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("UsuarioExecutorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UsuarioRollbackId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("UsuarioValidacaoId")
@@ -674,10 +652,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("MensagemRollback")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<int>("NumeroLinha")
                         .HasColumnType("integer");
 
@@ -686,12 +660,6 @@ namespace Orizon.Distribuidora.Infrastructure.Data.Migrations
 
                     b.Property<Guid?>("ProdutoId")
                         .HasColumnType("uuid");
-
-                    b.Property<bool>("Revertido")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("RollbackExecutadoEm")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

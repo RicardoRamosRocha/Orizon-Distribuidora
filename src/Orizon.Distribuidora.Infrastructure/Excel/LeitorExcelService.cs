@@ -6,7 +6,7 @@ namespace Orizon.Distribuidora.Infrastructure.Excel;
 
 public sealed class LeitorExcelService : ILeitorExcelService
 {
-    private const int MaxSampleRows = 50;
+    private const int MaxSampleRows = 10_000;
 
     public Task<PlanilhaImportada> LerAsync(
         ArquivoImportacaoExcel arquivo,

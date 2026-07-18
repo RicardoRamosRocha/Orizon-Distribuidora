@@ -13,12 +13,18 @@ public sealed class ModeloImportacao : CompanyOwnedAuditableEntity
         Guid companyId,
         string nome,
         TipoArquivoImportacao tipoArquivo,
-        string mapeamentoColunasJson)
+        string mapeamentoColunasJson,
+        Guid? usuarioId = null,
+        string assinaturaColunas = "",
+        bool padrao = false)
         : base(companyId)
     {
         SetNome(nome);
         TipoArquivo = tipoArquivo;
         SetMapeamentoColunasJson(mapeamentoColunasJson);
+        UsuarioId = usuarioId;
+        AssinaturaColunas = assinaturaColunas;
+        Padrao = padrao;
         Ativo = true;
     }
 
@@ -29,6 +35,9 @@ public sealed class ModeloImportacao : CompanyOwnedAuditableEntity
     public string MapeamentoColunasJson { get; private set; } = "{}";
 
     public bool Ativo { get; private set; } = true;
+    public Guid? UsuarioId { get; private set; }
+    public string AssinaturaColunas { get; private set; } = string.Empty;
+    public bool Padrao { get; private set; }
 
     public void Atualizar(string nome, string mapeamentoColunasJson, bool ativo)
     {
@@ -36,6 +45,8 @@ public sealed class ModeloImportacao : CompanyOwnedAuditableEntity
         SetMapeamentoColunasJson(mapeamentoColunasJson);
         Ativo = ativo;
     }
+
+    public void DefinirComoPadrao(bool padrao) => Padrao = padrao;
 
     private void SetNome(string nome)
     {
