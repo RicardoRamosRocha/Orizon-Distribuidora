@@ -280,25 +280,26 @@ public sealed class ImportacaoController : Controller
     }
 
     [HttpGet("Historico")]
-    public async Task<IActionResult> Historico()
-    {
-        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
-        var historico = await historicoImportacaoService.ListarAsync(companyId);
-        var model = historico
-            .Select(item => new ImportacaoHistoricoResumoViewModel
-            {
-                Id = item.Id,
-                NomeArquivo = item.NomeArquivo,
-                Status = item.Status,
-                TotalLinhas = item.TotalLinhas,
-                LinhasComErro = item.LinhasComErro,
-                LinhasImportadas = item.LinhasImportadas,
-                CriadoEm = item.CreatedAt
-            })
-            .ToList();
+    public async Task<IActionResult> Historico([FromQuery] ConsultaHistoricoImportacao consulta,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var page=await historicoImportacaoService.ConsultarAsync(company,consulta,cancellationToken);return View(new HistoricoImportacaoViewModel{Consulta=consulta,Pagina=page});}
 
-        return View(model);
-    }
+    [HttpGet("Detalhes/{id:guid}")]
+    public async Task<IActionResult> Detalhes(Guid id,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var details=await historicoImportacaoService.ObterDetalhesAsync(company,id,cancellationToken);if(details is null)return NotFound();return View(new HistoricoImportacaoDetalhesViewModel{Detalhes=details});}
+
+    [HttpGet("Dashboard")]
+    public async Task<IActionResult> Dashboard(DateTimeOffset? inicio,DateTimeOffset? fim,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);return Json(await historicoImportacaoService.ObterDashboardAsync(company,inicio,fim,cancellationToken));}
+
+    [HttpPost("Duplicar/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Duplicar(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await historicoImportacaoService.DuplicarConfiguracaoAsync(company,id,GetCurrentUserId(),cancellationToken);TempData["Success"]="Configuração duplicada. Selecione o novo modelo no próximo mapeamento.";return RedirectToAction(nameof(Upload));}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpPost("Excluir/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Excluir(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await historicoImportacaoService.ExcluirHistoricoAsync(company,id,GetCurrentUserId(),cancellationToken);TempData["Success"]="Histórico excluído com auditoria.";return RedirectToAction(nameof(Historico));}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
 
     private ImportacaoUploadViewModel BuildUploadModel()
     {

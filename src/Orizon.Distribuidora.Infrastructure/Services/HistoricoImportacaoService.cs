@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace Orizon.Distribuidora.Infrastructure.Services;
 
-public sealed class HistoricoImportacaoService : IHistoricoImportacaoService
+public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoService
 {
     private readonly ApplicationDbContext dbContext;
 

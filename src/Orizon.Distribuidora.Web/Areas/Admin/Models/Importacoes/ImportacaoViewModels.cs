@@ -154,3 +154,16 @@ public sealed class ImportacaoResultadoViewModel
     public string? Filtro { get; set; }
     public string? Busca { get; set; }
 }
+public sealed class HistoricoImportacaoViewModel
+{
+    public ConsultaHistoricoImportacao Consulta { get; set; } = new();
+    public PaginaHistoricoImportacao Pagina { get; set; } = null!;
+}
+public sealed class HistoricoImportacaoDetalhesViewModel
+{
+    public HistoricoImportacaoDetalhesDto Detalhes { get; set; } = null!;
+}
+public sealed class HistoricoDashboardViewModel
+{
+    public HistoricoDashboardDto Dashboard { get; set; } = null!;
+}

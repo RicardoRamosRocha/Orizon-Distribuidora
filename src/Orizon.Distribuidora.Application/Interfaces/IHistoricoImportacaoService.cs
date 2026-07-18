@@ -20,4 +20,9 @@ public interface IHistoricoImportacaoService
         Guid importacaoId,
         CancellationToken cancellationToken = default);
     Task SalvarValidacaoAsync(Guid companyId, Guid importacaoId, Guid? usuarioId, ResultadoValidacaoImportacao resultado, OpcoesValidacaoImportacao opcoes, CancellationToken cancellationToken = default);
+    Task<PaginaHistoricoImportacao> ConsultarAsync(Guid companyId,ConsultaHistoricoImportacao consulta,CancellationToken cancellationToken=default);
+    Task<HistoricoImportacaoDetalhesDto?> ObterDetalhesAsync(Guid companyId,Guid importacaoId,CancellationToken cancellationToken=default);
+    Task<HistoricoDashboardDto> ObterDashboardAsync(Guid companyId,DateTimeOffset? inicio=null,DateTimeOffset? fim=null,CancellationToken cancellationToken=default);
+    Task<Guid> DuplicarConfiguracaoAsync(Guid companyId,Guid importacaoId,Guid? usuarioId,CancellationToken cancellationToken=default);
+    Task ExcluirHistoricoAsync(Guid companyId,Guid importacaoId,Guid? usuarioId,CancellationToken cancellationToken=default);
 }
