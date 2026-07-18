@@ -29,7 +29,10 @@
     <link rel="stylesheet" href="~/css/products-premium-grid.css" asp-append-version="true" />
 }
 
-<section class="products-workspace" data-products-grid data-total-records="@Model.TotalItems" data-page="@filter.Page">
+<section class="products-workspace" data-products-grid data-total-records="@Model.TotalItems" data-page="@filter.Page"
+         data-grid-url="@Url.Action("GridData")" data-inline-url="@Url.Action("InlineEdit")"
+         data-bulk-url="@Url.Action("Bulk")" data-preference-url="@Url.Action("GridPreference")">
+    @Html.AntiForgeryToken()
     <header class="products-hero">
         <div class="products-title-block">
             <span class="products-kicker"><i class="ph ph-package"></i> Catalogo operacional</span>
@@ -49,6 +52,11 @@
                 <i class="ph ph-plus"></i>
                 Novo produto
             </a>
+            <div class="products-export-actions">
+                <a class="products-button products-button-secondary" data-grid-export="xlsx" href="#">XLSX</a>
+                <a class="products-button products-button-secondary" data-grid-export="csv" href="#">CSV</a>
+                <a class="products-button products-button-secondary" data-grid-export="pdf" href="#">PDF</a>
+            </div>
         </div>
     </header>
 
@@ -96,6 +104,10 @@
                 <option value="">Marca</option>
             </select>
 
+            <select name="GroupId" asp-items="Model.Groups" aria-label="Grupo">
+                <option value="">Grupo</option>
+            </select>
+
             <select name="SupplierId" asp-items="Model.Suppliers" aria-label="Fornecedor">
                 <option value="">Fornecedor</option>
             </select>
@@ -110,6 +122,9 @@
                 <option value="@ProductPriceStatus.Expired">Preco vencido</option>
                 <option value="@ProductPriceStatus.NoValidity">Sem validade</option>
             </select>
+
+            <input class="products-price-filter" type="number" step="0.01" min="0" name="MinimumPrice" value="@filter.MinimumPrice" placeholder="Preco min." aria-label="Preco minimo" />
+            <input class="products-price-filter" type="number" step="0.01" min="0" name="MaximumPrice" value="@filter.MaximumPrice" placeholder="Preco max." aria-label="Preco maximo" />
 
             <select name="PageSize" asp-for="Filter.PageSize" aria-label="Itens por pagina">
                 <option value="25">25</option>
@@ -146,14 +161,11 @@
 
     <div class="products-bulkbar" data-bulkbar hidden>
         <strong><span data-selected-count>0</span> selecionado(s)</strong>
-        <form method="post" asp-action="BulkActivate" data-bulk-form="activate">
-            @Html.AntiForgeryToken()
-            <button type="submit"><i class="ph ph-check-circle"></i> Ativar</button>
-        </form>
-        <form method="post" asp-action="BulkDeactivate" data-bulk-form="deactivate">
-            @Html.AntiForgeryToken()
-            <button type="submit"><i class="ph ph-prohibit"></i> Inativar</button>
-        </form>
+        <button type="button" data-bulk-operation="activate"><i class="ph ph-check-circle"></i> Ativar</button>
+        <button type="button" data-bulk-operation="deactivate"><i class="ph ph-prohibit"></i> Inativar</button>
+        <button type="button" data-select-filtered><i class="ph ph-checks"></i> Selecionar filtrados</button>
+        <button type="button" data-bulk-operation="delete"><i class="ph ph-trash"></i> Excluir</button>
+        <button type="button" data-bulk-operation="price-percent"><i class="ph ph-percent"></i> Ajustar preco</button>
     </div>
 
     <div class="products-grid-shell">
@@ -233,13 +245,13 @@
                             <td data-column="category">@(item.CategoryName ?? "-")</td>
                             <td data-column="brand">@(item.BrandName ?? "-")</td>
                             <td data-column="unit">@item.UnitName</td>
-                            <td data-column="cost" class="products-number">@item.CostPrice.ToString("C")</td>
-                            <td data-column="price" class="products-number">@item.SalePrice.ToString("C")</td>
+                            <td data-column="cost" data-edit="cost" data-value="@item.CostPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" tabindex="0" class="products-number products-editable">@item.CostPrice.ToString("C")</td>
+                            <td data-column="price" data-edit="price" data-value="@item.SalePrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" tabindex="0" class="products-number products-editable">@item.SalePrice.ToString("C")</td>
                             <td data-column="margin" class="products-number">@item.MarginPercentage.ToString("0.##")%</td>
-                            <td data-column="validity" class="@(expired ? "products-warning-text" : string.Empty)">
+                            <td data-column="validity" data-edit="priceValidUntil" data-value="@item.PriceValidUntil?.ToString("yyyy-MM-dd")" tabindex="0" class="products-editable @(expired ? "products-warning-text" : string.Empty)">
                                 @(item.PriceValidUntil?.ToString("dd/MM/yyyy") ?? "Sem validade")
                             </td>
-                            <td data-column="stock">@StockText(item)</td>
+                            <td data-column="stock" data-edit="minimumStock" data-value="@item.MinimumStock?.ToString(System.Globalization.CultureInfo.InvariantCulture)" tabindex="0" class="products-editable">@StockText(item)</td>
                             <td data-column="actions" class="products-row-actions">
                                 <a href="@Url.Action("Edit", new { id = item.Id })"><i class="ph ph-pencil-simple"></i> Editar</a>
                                 <a href="@Url.Action("History", new { id = item.Id })"><i class="ph ph-clock-counter-clockwise"></i> Historico</a>

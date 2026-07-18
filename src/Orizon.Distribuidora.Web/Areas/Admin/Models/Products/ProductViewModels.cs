@@ -24,11 +24,17 @@ public sealed class ProductFilterViewModel
 
     public Guid? BrandId { get; set; }
 
+    public Guid? GroupId { get; set; }
+
     public Guid? SupplierId { get; set; }
 
     public Guid? PartnerId { get; set; }
 
     public bool? ControlsStock { get; set; }
+
+    public decimal? MinimumPrice { get; set; }
+
+    public decimal? MaximumPrice { get; set; }
 
     public ProductPriceStatus PriceStatus { get; set; }
 
@@ -62,6 +68,8 @@ public sealed class ProductIndexViewModel
     public IReadOnlyList<SelectListItem> Categories { get; set; } = [];
 
     public IReadOnlyList<SelectListItem> Brands { get; set; } = [];
+
+    public IReadOnlyList<SelectListItem> Groups { get; set; } = [];
 
     public IReadOnlyList<SelectListItem> Suppliers { get; set; } = [];
 
@@ -232,5 +240,29 @@ public sealed class ProductInlineEditRequest
 
     public string Field { get; set; } = string.Empty;
 
+    public string? Value { get; set; }
+}
+
+public sealed class ProductGridPreferenceRequest
+{
+    [Required]
+    public string StateJson { get; set; } = "{}";
+}
+
+public sealed class ProductSavedFilterRequest
+{
+    [Required, StringLength(80)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    public string FilterJson { get; set; } = "{}";
+}
+
+public sealed class ProductBulkOperationRequest
+{
+    public IReadOnlyList<Guid> Ids { get; set; } = [];
+    public bool AllFiltered { get; set; }
+    public ProductFilterViewModel Filter { get; set; } = new();
+    [Required] public string Operation { get; set; } = string.Empty;
     public string? Value { get; set; }
 }

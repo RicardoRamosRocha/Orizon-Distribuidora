@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Orizon.Distribuidora.Application.Interfaces;
+using Orizon.Distribuidora.Application.Products;
 using Orizon.Distribuidora.Infrastructure.Data;
 using Orizon.Distribuidora.Infrastructure.Excel;
 using Orizon.Distribuidora.Infrastructure.Identity;
@@ -71,6 +72,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IImportacaoProdutosService, ImportacaoProdutosService>();
         services.AddScoped<IExecutorImportacaoProdutosService, ExecutorImportacaoProdutosService>();
         services.AddScoped<IExportacaoImportacaoService, ExportacaoImportacaoService>();
+        services.AddScoped<IProductGridExportService, ProductGridExportService>();
         services.AddScoped<IRollbackImportacaoService, RollbackImportacaoService>();
         services.AddScoped<ILeitorExcelService, LeitorExcelService>();
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
