@@ -1,18 +1,194 @@
 @{
     ViewData["Title"] = "Configurações";
 }
-<header class="orizon-page-header">
-    <div><h1 class="orizon-page-title">Configurações</h1><p class="orizon-page-description">Centralize a administração e personalize a experiência da plataforma.</p></div>
-</header>
-<section class="orizon-settings-grid" aria-label="Áreas de configuração">
-@foreach (var item in new[] {
-    ("building", "Empresa", "Dados institucionais e identidade da empresa.", "/Admin/Company"),
-    ("users", "Usuários", "Acessos e integrantes da equipe.", "/Admin/Users"),
-    ("shield-check", "Perfis", "Perfis e permissões administrativas.", "/Admin/Roles"),
-    ("palette", "Aparência", "Tema, cores e identidade visual.", "/Admin/Appearance"),
-    ("sliders", "Preferências", "Preferências gerais da operação.", "/Admin/Preferences"),
-    ("clock-counter-clockwise", "Auditoria", "Histórico e rastreabilidade de atividades.", "/Admin/Audit") })
-{
-    <orizon-card><a class="orizon-settings-card" href="@item.Item4"><span class="orizon-settings-card-icon"><orizon-icon name="@item.Item1" size="24" /></span><strong>@item.Item2</strong><p>@item.Item3</p><span>Acessar →</span></a></orizon-card>
-}
-</section>
+
+<div class="orizon-page">
+
+    <div class="orizon-page-header">
+
+        <div>
+            <h1>Configurações</h1>
+
+            <p>
+                Gerencie as configurações gerais da plataforma Orizon Distribuidora.
+            </p>
+        </div>
+
+        <div>
+
+            <orizon-button icon="save"
+                            color="primary">
+                Salvar Alterações
+            </orizon-button>
+
+        </div>
+
+    </div>
+
+    <div class="orizon-dashboard-grid">
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="building"></orizon-icon>
+
+                <span>Empresa</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+                    Dados cadastrais, CNPJ, endereço, contatos e identidade visual.
+                </p>
+
+                <orizon-button asp-controller="Company"
+                                asp-action="Index"
+                                variant="outline">
+                    Abrir
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="users"></orizon-icon>
+
+                <span>Usuários</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+                    Administração de usuários, perfis e permissões.
+                </p>
+
+                <orizon-button asp-controller="Users"
+                                asp-action="Index"
+                                variant="outline">
+                    Abrir
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="database"></orizon-icon>
+
+                <span>Banco de Dados</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+                    Backup, restauração e manutenção.
+                </p>
+
+                <orizon-button variant="outline">
+
+                    Backup
+
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="shield"></orizon-icon>
+
+                <span>Segurança</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+
+                    Senhas, autenticação e auditoria.
+
+                </p>
+
+                <orizon-button variant="outline">
+
+                    Configurar
+
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="gear"></orizon-icon>
+
+                <span>Sistema</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+
+                    Parâmetros gerais do sistema.
+
+                </p>
+
+                <orizon-button variant="outline">
+
+                    Abrir
+
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+        <orizon-card>
+
+            <orizon-card-header>
+
+                <orizon-icon name="cloud"></orizon-icon>
+
+                <span>Integrações</span>
+
+            </orizon-card-header>
+
+            <orizon-card-body>
+
+                <p>
+
+                    APIs, WhatsApp, e-mail e serviços externos.
+
+                </p>
+
+                <orizon-button variant="outline">
+
+                    Configurar
+
+                </orizon-button>
+
+            </orizon-card-body>
+
+        </orizon-card>
+
+    </div>
+
+</div>
