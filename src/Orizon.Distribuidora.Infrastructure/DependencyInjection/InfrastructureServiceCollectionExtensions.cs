@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Orizon.Distribuidora.Application.Interfaces;
 using Orizon.Distribuidora.Application.Products;
+using Orizon.Distribuidora.Application.Appearance;
 using Orizon.Distribuidora.Infrastructure.Data;
 using Orizon.Distribuidora.Infrastructure.Excel;
 using Orizon.Distribuidora.Infrastructure.Identity;
@@ -73,6 +74,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IExecutorImportacaoProdutosService, ExecutorImportacaoProdutosService>();
         services.AddScoped<IExportacaoImportacaoService, ExportacaoImportacaoService>();
         services.AddScoped<IProductGridExportService, ProductGridExportService>();
+        services.AddScoped<IAppearanceService, AppearanceService>();
+        services.AddScoped<IThemeService, ThemeService>();
+        services.AddScoped<IPreferenceService, PreferenceService>();
+        services.AddScoped<IThemeStorageService, ThemeStorageService>();
         services.AddScoped<IRollbackImportacaoService, RollbackImportacaoService>();
         services.AddScoped<ILeitorExcelService, LeitorExcelService>();
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
