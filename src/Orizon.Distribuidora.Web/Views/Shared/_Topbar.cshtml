@@ -1,0 +1,43 @@
+@{
+    var pageTitle = ViewData["Title"]?.ToString() ?? "Dashboard";
+    var userName = User.Identity?.Name ?? "Usuário Orizon";
+    var initials = string.Concat(userName.Split(new[] { ' ', '@', '.', '_' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
+}
+<div class="orizon-topbar-content">
+    <div class="orizon-topbar-left">
+        <button type="button" class="orizon-topbar-menu-button" data-sidebar-toggle aria-label="Abrir menu lateral" aria-expanded="false" aria-controls="admin-sidebar">
+            <orizon-icon name="menu" size="22" />
+        </button>
+        <div class="orizon-topbar-title-group">
+            <span class="orizon-topbar-eyebrow">Orizon Distribuidora</span>
+            <strong class="orizon-topbar-title">@pageTitle</strong>
+        </div>
+    </div>
+    <div class="orizon-topbar-search" role="search">
+        <orizon-icon name="magnifying-glass" size="18" />
+        <input type="search" placeholder="Pesquisar em toda a plataforma..." aria-label="Pesquisa global" disabled title="Pesquisa global em breve" />
+        <kbd>/</kbd>
+    </div>
+    <div class="orizon-topbar-actions">
+        <button type="button" class="orizon-topbar-action-button" aria-label="Notificações" title="Notificações">
+            <orizon-icon name="bell" size="20" />
+        </button>
+        <button type="button" class="orizon-topbar-action-button" data-theme-toggle aria-label="Alternar tema" aria-pressed="false" title="Alternar tema">
+            <orizon-icon name="moon" size="20" data-theme-icon />
+        </button>
+        <div class="orizon-user-menu">
+            <button type="button" class="orizon-topbar-profile-button" data-user-menu-toggle aria-label="Abrir menu do usuário" aria-expanded="false" aria-controls="user-menu">
+                <span class="orizon-topbar-profile-avatar" aria-hidden="true">@(string.IsNullOrEmpty(initials) ? "OR" : initials)</span>
+                <span class="orizon-topbar-profile-content"><strong>@userName</strong><small>Administrador</small></span>
+                <orizon-icon name="chevron-down" size="18" class="orizon-topbar-profile-chevron" />
+            </button>
+            <div id="user-menu" class="orizon-user-menu-panel" hidden>
+                <a href="/Admin/Preferences" role="menuitem">Preferências</a>
+                <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" role="menuitem">Sair</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

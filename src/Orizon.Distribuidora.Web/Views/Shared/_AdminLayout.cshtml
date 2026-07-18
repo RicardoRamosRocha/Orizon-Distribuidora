@@ -1,0 +1,42 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var pageTitle = ViewData["Title"]?.ToString();
+    var applicationName = ViewData["ApplicationName"]?.ToString() ?? "Orizon Platform";
+    var fullTitle = string.IsNullOrWhiteSpace(pageTitle) ? applicationName : $"{pageTitle} | {applicationName}";
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@fullTitle</title>
+    <meta name="request-verification-token" content="@requestToken" />
+    <link rel="stylesheet" href="~/_content/Orizon.UI/css/orizon.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-navigation.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="orizon-admin-body">
+    <a class="orizon-skip-link" href="#main-content">Ir para o conteúdo principal</a>
+    <div class="orizon-admin-shell" data-admin-layout>
+        <div class="orizon-sidebar-backdrop" data-sidebar-backdrop aria-hidden="true"></div>
+        <aside class="orizon-admin-sidebar" id="admin-sidebar" data-sidebar aria-label="Navegação principal">
+            <partial name="_Sidebar" />
+        </aside>
+        <div class="orizon-admin-main">
+            <header class="orizon-admin-topbar"><partial name="_Topbar" /></header>
+            <main class="orizon-admin-content" id="main-content" tabindex="-1">
+                <partial name="_Breadcrumb" />
+                <div class="orizon-admin-page">@RenderBody()</div>
+            </main>
+            <div class="orizon-admin-footer"><partial name="_Footer" /></div>
+        </div>
+    </div>
+    <script src="~/_content/Orizon.UI/js/layout/admin-layout.js" asp-append-version="true"></script>
+    <script src="~/_content/Orizon.UI/js/layout/sidebar.js" asp-append-version="true"></script>
+    <script src="~/_content/Orizon.UI/js/layout/theme.js" asp-append-version="true"></script>
+    <script src="~/js/admin-navigation.js" asp-append-version="true"></script>
+    <script type="module" src="~/_content/Orizon.UI/js/orizon.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
