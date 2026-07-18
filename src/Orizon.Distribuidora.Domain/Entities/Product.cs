@@ -194,6 +194,18 @@ public sealed class Product : CompanyOwnedAuditableEntity
         PriceValidUntil = priceValidUntil;
     }
 
+    public void UpdateInlineClassification(Guid? categoryId, Guid? brandId, Guid? supplierId)
+    {
+        if (categoryId.HasValue) CategoryId = categoryId;
+        if (brandId.HasValue) BrandId = brandId;
+        if (supplierId.HasValue) MainSupplierId = supplierId;
+    }
+
+    public void UpdateInlineCommission(CommissionType? commissionType, decimal? commissionValue)
+    {
+        SetCommission(commissionType, commissionValue);
+    }
+
     public decimal CalculateMarginPercentage()
     {
         if (SalePrice <= 0)

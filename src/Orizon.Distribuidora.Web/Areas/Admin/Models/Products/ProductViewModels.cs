@@ -257,3 +257,12 @@ public sealed class ProductSavedFilterRequest
     [Required]
     public string FilterJson { get; set; } = "{}";
 }
+
+public sealed class ProductBulkOperationRequest
+{
+    public IReadOnlyList<Guid> Ids { get; set; } = [];
+    public bool AllFiltered { get; set; }
+    public ProductFilterViewModel Filter { get; set; } = new();
+    [Required] public string Operation { get; set; } = string.Empty;
+    public string? Value { get; set; }
+}

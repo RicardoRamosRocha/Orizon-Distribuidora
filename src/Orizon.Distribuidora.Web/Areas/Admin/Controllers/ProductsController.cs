@@ -88,6 +88,31 @@ public sealed class ProductsController : Controller
         return View(model);
     }
 
+    [HttpGet("GridData")]
+    public async Task<IActionResult> GridData([FromQuery] ProductFilterViewModel filter, CancellationToken cancellationToken)
+    {
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        NormalizeFilter(filter);
+        var query = ApplyFilters(dbContext.Products.AsNoTracking(), companyId, filter);
+        var total = await query.CountAsync(cancellationToken);
+        var items = await ApplySorting(query, filter)
+            .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
+            .Select(product => new ProductRowViewModel
+            {
+                Id = product.Id, InternalCode = product.InternalCode, Sku = product.Sku,
+                Name = product.Name, ShortDescription = product.ShortDescription,
+                ProductType = product.ProductType, ControlsStock = product.ControlsStock,
+                CategoryName = product.Category != null ? product.Category.Name : null,
+                BrandName = product.Brand != null ? product.Brand.Name : null,
+                UnitName = product.UnitOfMeasure!.Abbreviation, CostPrice = product.CostPrice,
+                SalePrice = product.SalePrice,
+                MarginPercentage = product.SalePrice > 0 ? Math.Round(((product.SalePrice - product.CostPrice) / product.SalePrice) * 100, 2) : 0,
+                PriceValidUntil = product.PriceValidUntil, MinimumStock = product.MinimumStock,
+                IsActive = product.IsActive, ImagePath = product.ImagePath
+            }).ToListAsync(cancellationToken);
+        return Json(new { items, total, page = filter.Page, hasMore = filter.Page * filter.PageSize < total });
+    }
+
     [HttpGet("GridPreference")]
     public async Task<IActionResult> GridPreference(CancellationToken cancellationToken)
     {
@@ -433,6 +458,18 @@ public sealed class ProductsController : Controller
                 case "priceValidUntil":
                     product.UpdateInlinePriceValidity(ParseNullableDate(request.Value));
                     break;
+                case "category":
+                    product.UpdateInlineClassification(ParseNullableGuid(request.Value), null, null);
+                    break;
+                case "brand":
+                    product.UpdateInlineClassification(null, ParseNullableGuid(request.Value), null);
+                    break;
+                case "supplier":
+                    product.UpdateInlineClassification(null, null, ParseNullableGuid(request.Value));
+                    break;
+                case "commission":
+                    product.UpdateInlineCommission(product.CommissionType ?? CommissionType.Percentage, ParseNullableDecimal(request.Value));
+                    break;
                 default:
                     return BadRequest(new { ok = false, message = "Campo não permitido para edição inline." });
             }
@@ -446,6 +483,50 @@ public sealed class ProductsController : Controller
                 margin = product.CalculateMarginPercentage(),
                 message = "Salvo."
             });
+        }
+        catch (Exception exception) when (exception is ArgumentException or ArgumentOutOfRangeException or FormatException or InvalidOperationException)
+        {
+            return BadRequest(new { ok = false, message = BuildFriendlyError(exception) });
+        }
+    }
+
+    [HttpPost("Bulk")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Bulk([FromBody] ProductBulkOperationRequest request, CancellationToken cancellationToken)
+    {
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        NormalizeFilter(request.Filter);
+        var selected = request.AllFiltered
+            ? ApplyFilters(dbContext.Products, companyId, request.Filter)
+            : dbContext.Products.Where(x => x.CompanyId == companyId && request.Ids.Contains(x.Id));
+        var products = await selected.Take(10_000).ToListAsync(cancellationToken);
+        if (products.Count == 0) return BadRequest(new { ok = false, message = "Nenhum produto selecionado." });
+
+        try
+        {
+            var relatedId = request.Operation is "category" or "brand" or "supplier" ? ParseNullableGuid(request.Value) : null;
+            foreach (var product in products)
+            {
+                var before = Snapshot(product);
+                switch (request.Operation)
+                {
+                    case "activate": product.Activate(); break;
+                    case "deactivate": product.Deactivate(); break;
+                    case "delete": dbContext.Products.Remove(product); break;
+                    case "category": product.UpdateInlineClassification(relatedId, null, null); break;
+                    case "brand": product.UpdateInlineClassification(null, relatedId, null); break;
+                    case "supplier": product.UpdateInlineClassification(null, null, relatedId); break;
+                    case "price-percent":
+                        var percentage = ParseDecimal(request.Value);
+                        product.UpdateInlinePrice(null, decimal.Round(product.SalePrice * (1 + percentage / 100), 2));
+                        break;
+                    case "commission": product.UpdateInlineCommission(product.CommissionType ?? CommissionType.Percentage, ParseNullableDecimal(request.Value)); break;
+                    default: return BadRequest(new { ok = false, message = "Operacao em massa nao suportada." });
+                }
+                if (request.Operation != "delete") AddHistory(companyId, product, before, "grade - acao em massa");
+            }
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Json(new { ok = true, affected = products.Count });
         }
         catch (Exception exception) when (exception is ArgumentException or ArgumentOutOfRangeException or FormatException or InvalidOperationException)
         {
@@ -837,6 +918,12 @@ public sealed class ProductsController : Controller
     private static DateOnly? ParseNullableDate(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : DateOnly.Parse(value);
+    }
+
+    private static Guid? ParseNullableGuid(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return Guid.TryParse(value, out var parsed) ? parsed : throw new FormatException("Identificador invalido.");
     }
 
     private static string? OnlyDigits(string? value)

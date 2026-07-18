@@ -147,6 +147,29 @@ public sealed class ProductTests
         Assert.Throws<ArgumentException>(action);
     }
 
+    [Fact]
+    public void InlineClassification_ShouldUpdateOnlyProvidedFields()
+    {
+        var product = CreateProduct(ProductType.Own);
+        var categoryId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+
+        product.UpdateInlineClassification(categoryId, null, supplierId);
+
+        Assert.Equal(categoryId, product.CategoryId);
+        Assert.Null(product.BrandId);
+        Assert.Equal(supplierId, product.MainSupplierId);
+    }
+
+    [Fact]
+    public void InlineCommission_ShouldApplyDomainValidation()
+    {
+        var product = CreateProduct(ProductType.Own);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            product.UpdateInlineCommission(CommissionType.Percentage, 101));
+    }
+
     private static Product CreateProduct(ProductType type)
     {
         return new Product(Guid.NewGuid(), "PRD-1", "Produto teste", Guid.NewGuid(), type);
