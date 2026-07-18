@@ -44,6 +44,12 @@ public sealed class ApplicationDbContext
 
     public DbSet<ProductChangeHistory> ProductChangeHistories => Set<ProductChangeHistory>();
 
+    public DbSet<PriceTable> PriceTables => Set<PriceTable>();
+
+    public DbSet<ProductPrice> ProductPrices => Set<ProductPrice>();
+
+    public DbSet<PriceHistory> PriceHistories => Set<PriceHistory>();
+
     public DbSet<ProductGridPreference> ProductGridPreferences => Set<ProductGridPreference>();
 
     public DbSet<ProductSavedFilter> ProductSavedFilters => Set<ProductSavedFilter>();
