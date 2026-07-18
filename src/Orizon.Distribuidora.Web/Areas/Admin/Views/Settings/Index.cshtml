@@ -1,0 +1,18 @@
+@{
+    ViewData["Title"] = "Configurações";
+}
+<header class="orizon-page-header">
+    <div><h1 class="orizon-page-title">Configurações</h1><p class="orizon-page-description">Centralize a administração e personalize a experiência da plataforma.</p></div>
+</header>
+<section class="orizon-settings-grid" aria-label="Áreas de configuração">
+@foreach (var item in new[] {
+    ("building", "Empresa", "Dados institucionais e identidade da empresa.", "/Admin/Company"),
+    ("users", "Usuários", "Acessos e integrantes da equipe.", "/Admin/Users"),
+    ("shield-check", "Perfis", "Perfis e permissões administrativas.", "/Admin/Roles"),
+    ("palette", "Aparência", "Tema, cores e identidade visual.", "/Admin/Appearance"),
+    ("sliders", "Preferências", "Preferências gerais da operação.", "/Admin/Preferences"),
+    ("clock-counter-clockwise", "Auditoria", "Histórico e rastreabilidade de atividades.", "/Admin/Audit") })
+{
+    <orizon-card><a class="orizon-settings-card" href="@item.Item4"><span class="orizon-settings-card-icon"><orizon-icon name="@item.Item1" size="24" /></span><strong>@item.Item2</strong><p>@item.Item3</p><span>Acessar →</span></a></orizon-card>
+}
+</section>

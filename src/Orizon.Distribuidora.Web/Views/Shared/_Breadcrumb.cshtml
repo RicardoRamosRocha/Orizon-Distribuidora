@@ -1,0 +1,22 @@
+@{
+    var title = ViewData["Title"]?.ToString() ?? "Dashboard";
+    var sectionName = ViewData["BreadcrumbSection"]?.ToString();
+    var path = Context.Request.Path.Value ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(sectionName) && path.StartsWith("/Admin/Cadastros", StringComparison.OrdinalIgnoreCase)) sectionName = "Cadastros";
+    if (string.IsNullOrWhiteSpace(sectionName) && path.StartsWith("/Admin/Appearance", StringComparison.OrdinalIgnoreCase)) sectionName = "Configurações";
+}
+<nav class="orizon-breadcrumb" aria-label="Navegação estrutural">
+    <ol class="orizon-breadcrumb-list">
+        <li class="orizon-breadcrumb-item"><a href="/Admin/Dashboard">Dashboard</a></li>
+        @if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals(title, StringComparison.OrdinalIgnoreCase))
+        {
+            <li class="orizon-breadcrumb-separator" aria-hidden="true">/</li>
+            <li class="orizon-breadcrumb-item"><span>@sectionName</span></li>
+        }
+        @if (!title.Equals("Dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            <li class="orizon-breadcrumb-separator" aria-hidden="true">/</li>
+            <li class="orizon-breadcrumb-item is-active" aria-current="page">@title</li>
+        }
+    </ol>
+</nav>
