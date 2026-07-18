@@ -29,6 +29,7 @@ public sealed class ImportacaoController : Controller
     private readonly IContextoValidacaoImportacaoService contextoValidacaoImportacaoService;
     private readonly IExecutorImportacaoProdutosService executorImportacaoProdutosService;
     private readonly IExportacaoImportacaoService exportacaoImportacaoService;
+    private readonly IRollbackImportacaoService rollbackImportacaoService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
@@ -41,7 +42,8 @@ public sealed class ImportacaoController : Controller
         IValidadorDadosImportacaoService validadorDadosImportacaoService,
         IContextoValidacaoImportacaoService contextoValidacaoImportacaoService,
         IExecutorImportacaoProdutosService executorImportacaoProdutosService,
-        IExportacaoImportacaoService exportacaoImportacaoService)
+        IExportacaoImportacaoService exportacaoImportacaoService,
+        IRollbackImportacaoService rollbackImportacaoService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
@@ -54,6 +56,7 @@ public sealed class ImportacaoController : Controller
         this.contextoValidacaoImportacaoService = contextoValidacaoImportacaoService;
         this.executorImportacaoProdutosService = executorImportacaoProdutosService;
         this.exportacaoImportacaoService = exportacaoImportacaoService;
+        this.rollbackImportacaoService = rollbackImportacaoService;
     }
 
     [HttpGet("")]
@@ -300,6 +303,23 @@ public sealed class ImportacaoController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Excluir(Guid id,CancellationToken cancellationToken)
     {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await historicoImportacaoService.ExcluirHistoricoAsync(company,id,GetCurrentUserId(),cancellationToken);TempData["Success"]="Histórico excluído com auditoria.";return RedirectToAction(nameof(Historico));}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpGet("Rollback/{id:guid}")]
+    public async Task<IActionResult> Rollback(Guid id,CancellationToken cancellationToken)
+    {try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);return View(new RollbackConfirmacaoViewModel{Analise=await rollbackImportacaoService.AnalisarAsync(id,company,GetCurrentUserId(),cancellationToken)});}catch(UnauthorizedAccessException){return NotFound();}catch(RollbackImportacaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Historico));}}
+
+    [HttpPost("ExecutarRollback/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExecutarRollback(Guid id,string confirmacao,bool permitirParcial,CancellationToken cancellationToken)
+    {if(!string.Equals(confirmacao,"CONFIRMAR",StringComparison.Ordinal)) {TempData["Error"]="Digite CONFIRMAR para autorizar o rollback.";return RedirectToAction(nameof(Rollback),new{id});}try{var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await rollbackImportacaoService.ExecutarAsync(id,company,GetCurrentUserId(),permitirParcial,cancellationToken);return RedirectToAction(nameof(RollbackResultado),new{id});}catch(UnauthorizedAccessException){return NotFound();}catch(RollbackImportacaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Rollback),new{id});}}
+
+    [HttpGet("RollbackResultado/{id:guid}")]
+    public async Task<IActionResult> RollbackResultado(Guid id,CancellationToken cancellationToken)
+    {var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var result=await rollbackImportacaoService.ObterResultadoAsync(id,company,cancellationToken);return result is null?NotFound():View(new RollbackResultadoViewModel{Resultado=result});}
+    [HttpGet("RollbackExcel/{id:guid}")]
+    public async Task<IActionResult> RollbackExcel(Guid id,CancellationToken cancellationToken){var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var f=await rollbackImportacaoService.ExportarExcelAsync(id,company,cancellationToken);return File(f.Conteudo,f.ContentType,f.NomeArquivo);}
+    [HttpGet("RollbackCsv/{id:guid}")]
+    public async Task<IActionResult> RollbackCsv(Guid id,CancellationToken cancellationToken){var company=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var f=await rollbackImportacaoService.ExportarCsvAsync(id,company,cancellationToken);return File(f.Conteudo,f.ContentType,f.NomeArquivo);}
 
     private ImportacaoUploadViewModel BuildUploadModel()
     {

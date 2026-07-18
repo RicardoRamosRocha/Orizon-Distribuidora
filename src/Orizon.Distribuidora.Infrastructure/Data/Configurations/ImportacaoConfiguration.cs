@@ -23,6 +23,7 @@ public sealed class ImportacaoHistoricoConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.LinhasImportadas).IsRequired();
         builder.Property(entity => entity.Observacoes).HasMaxLength(2000);
         builder.Property(entity => entity.OpcoesValidacaoJson).HasColumnType("jsonb");
+        builder.Property(entity => entity.ObservacoesRollback).HasMaxLength(2000);
         builder.Property(entity => entity.TokenExecucao);
         builder.Property(entity => entity.CreatedAt).IsRequired();
         builder.Property(entity => entity.IsDeleted).HasDefaultValue(false).IsRequired();
@@ -71,6 +72,7 @@ public sealed class ImportacaoItemConfiguration : IEntityTypeConfiguration<Impor
         builder.Property(entity => entity.DadosNormalizadosJson).HasColumnType("jsonb");
         builder.Property(entity => entity.OperacaoExecucao).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.MensagemExecucao).HasMaxLength(1000);
+        builder.Property(entity => entity.MensagemRollback).HasMaxLength(1000);
         builder.Property(entity => entity.AlteracoesAplicadasJson).HasColumnType("jsonb");
         builder.Property(entity => entity.ChaveIdempotencia);
         builder.Property(entity => entity.CreatedAt).IsRequired();

@@ -46,6 +46,9 @@ public sealed class ImportacaoItem : CompanyOwnedAuditableEntity
     public string? MensagemExecucao { get; private set; }
     public string? AlteracoesAplicadasJson { get; private set; }
     public Guid? ChaveIdempotencia { get; private set; }
+    public DateTimeOffset? RollbackExecutadoEm { get; private set; }
+    public string? MensagemRollback { get; private set; }
+    public bool Revertido { get; private set; }
 
     public Product? Produto { get; private set; }
 
@@ -78,6 +81,7 @@ public sealed class ImportacaoItem : CompanyOwnedAuditableEntity
     }
     public void PrepararExecucao(OperacaoExecucaoImportacao operacao){OperacaoExecucao=operacao;ChaveIdempotencia??=Guid.NewGuid();}
     public void ConcluirExecucao(StatusLinhaImportacao status, Guid? produtoId, string? mensagem=null, string? alteracoesJson=null){if(status is not(StatusLinhaImportacao.Inserida or StatusLinhaImportacao.Atualizada or StatusLinhaImportacao.SemAlteracao or StatusLinhaImportacao.Ignorada or StatusLinhaImportacao.Bloqueada or StatusLinhaImportacao.Falhou))throw new ArgumentException("Status final inválido.",nameof(status));Status=status;ProdutoId=produtoId;MensagemExecucao=string.IsNullOrWhiteSpace(mensagem)?null:mensagem.Trim();AlteracoesAplicadasJson=string.IsNullOrWhiteSpace(alteracoesJson)?null:alteracoesJson;ExecutadoEm=DateTimeOffset.UtcNow;}
+    public void RegistrarRollback(bool revertido,string mensagem){Revertido=revertido;MensagemRollback=string.IsNullOrWhiteSpace(mensagem)?null:mensagem.Trim();RollbackExecutadoEm=DateTimeOffset.UtcNow;}
 
     private void SetNumeroLinha(int numeroLinha)
     {

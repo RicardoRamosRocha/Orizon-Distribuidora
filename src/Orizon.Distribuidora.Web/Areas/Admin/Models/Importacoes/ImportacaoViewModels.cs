@@ -167,3 +167,11 @@ public sealed class HistoricoDashboardViewModel
 {
     public HistoricoDashboardDto Dashboard { get; set; } = null!;
 }
+public sealed class RollbackConfirmacaoViewModel
+{
+    public AnaliseRollbackImportacao Analise { get; set; } = null!;
+}
+public sealed class RollbackResultadoViewModel
+{
+    public ResultadoRollbackImportacao Resultado { get; set; } = null!;
+}

@@ -66,6 +66,14 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     public int FalhasExecucao { get; private set; }
     public Guid? UsuarioExecutorId { get; private set; }
     public Guid? TokenExecucao { get; private set; }
+    public DateTimeOffset? RollbackIniciadoEm { get; private set; }
+    public DateTimeOffset? RollbackFinalizadoEm { get; private set; }
+    public Guid? UsuarioRollbackId { get; private set; }
+    public int ProdutosRemovidosRollback { get; private set; }
+    public int ProdutosRestauradosRollback { get; private set; }
+    public int ProdutosBloqueadosRollback { get; private set; }
+    public int FalhasRollback { get; private set; }
+    public string? ObservacoesRollback { get; private set; }
 
     public IReadOnlyCollection<ImportacaoItem> Itens => itens.AsReadOnly();
 
@@ -111,6 +119,8 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     }
     public Guid IniciarExecucao(Guid? usuarioId){if(Status!=StatusImportacao.ProntaParaImportar)throw new InvalidOperationException("A importação não está pronta para execução.");Status=StatusImportacao.Importando;UsuarioExecutorId=usuarioId;TokenExecucao=Guid.NewGuid();IniciadoEm=DateTimeOffset.UtcNow;FinalizadoEm=null;return TokenExecucao.Value;}
     public void FinalizarExecucao(int processados,int inseridos,int atualizados,int semAlteracao,int ignorados,int bloqueados,int falhas){TotalLinhas=processados;ProdutosInseridos=inseridos;ProdutosAtualizados=atualizados;SemAlteracao=semAlteracao;LinhasIgnoradas=ignorados;ItensBloqueados=bloqueados;FalhasExecucao=falhas;LinhasImportadas=inseridos+atualizados;FinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Concluida:(inseridos+atualizados)>0?StatusImportacao.ConcluidaParcialmente:StatusImportacao.Falhou;TokenExecucao=null;}
+    public void IniciarRollback(Guid? usuarioId){if(Status is not(StatusImportacao.Concluida or StatusImportacao.ConcluidaParcialmente))throw new InvalidOperationException("A importação não permite rollback.");Status=StatusImportacao.RollbackEmAndamento;UsuarioRollbackId=usuarioId;RollbackIniciadoEm=DateTimeOffset.UtcNow;RollbackFinalizadoEm=null;}
+    public void FinalizarRollback(int removidos,int restaurados,int bloqueados,int falhas,string? observacoes){ProdutosRemovidosRollback=removidos;ProdutosRestauradosRollback=restaurados;ProdutosBloqueadosRollback=bloqueados;FalhasRollback=falhas;ObservacoesRollback=string.IsNullOrWhiteSpace(observacoes)?null:observacoes.Trim();RollbackFinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Revertida:(removidos+restaurados)>0?StatusImportacao.RevertidaParcialmente:StatusImportacao.RollbackFalhou;}
 
     private void SetArquivo(string nomeArquivo, long tamanhoArquivoBytes)
     {
