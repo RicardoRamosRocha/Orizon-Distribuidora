@@ -1,0 +1,13 @@
+.appearance-hero { display: flex; align-items: end; justify-content: space-between; gap: var(--orizon-space-4); margin-bottom: var(--orizon-space-6); }
+.appearance-hero h1 { margin: var(--orizon-space-2) 0; font-size: var(--orizon-text-h1); }
+.appearance-hero p { margin: 0; color: var(--orizon-color-text-secondary); }
+.appearance-save-state { color: var(--orizon-color-success); font-size: var(--orizon-font-size-sm); }
+.appearance-company-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--orizon-density-list-gap); }
+.appearance-company-form .orizon-button { align-self: end; }
+.appearance-swatch-blue { --swatch-color: var(--orizon-brand-blue); }
+.appearance-swatch-green { --swatch-color: var(--orizon-brand-green); }
+.appearance-swatch-purple { --swatch-color: var(--orizon-brand-purple); }
+.appearance-swatch-red { --swatch-color: var(--orizon-brand-red); }
+.appearance-swatch-orange { --swatch-color: var(--orizon-brand-orange); }
+.appearance-swatch-cyan { --swatch-color: var(--orizon-brand-cyan); }
+@media (max-width: 48rem) { .appearance-hero { align-items: start; flex-direction: column; } .appearance-company-form { grid-template-columns: 1fr; } }

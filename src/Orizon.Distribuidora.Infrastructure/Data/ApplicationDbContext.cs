@@ -48,6 +48,10 @@ public sealed class ApplicationDbContext
 
     public DbSet<ProductSavedFilter> ProductSavedFilters => Set<ProductSavedFilter>();
 
+    public DbSet<CompanyAppearanceSettings> CompanyAppearanceSettings => Set<CompanyAppearanceSettings>();
+
+    public DbSet<UserAppearanceSettings> UserAppearanceSettings => Set<UserAppearanceSettings>();
+
     public DbSet<ImportacaoHistorico> ImportacoesHistorico => Set<ImportacaoHistorico>();
 
     public DbSet<ImportacaoItem> ImportacaoItens => Set<ImportacaoItem>();

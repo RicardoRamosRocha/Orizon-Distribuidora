@@ -1,0 +1,61 @@
+@model Orizon.Distribuidora.Web.Areas.Admin.Models.Appearance.AppearancePageViewModel
+@{
+    ViewData["Title"] = "Aparencia";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
+
+@section Styles { <link rel="stylesheet" href="~/css/appearance-page.css" asp-append-version="true" /> }
+
+<header class="appearance-hero">
+    <div><span class="orizon-badge orizon-badge--primary">Personalizacao</span><h1>Aparencia</h1><p>Personalize a experiencia da empresa e do seu ambiente de trabalho.</p></div>
+    <span class="appearance-save-state" data-appearance-save-state aria-live="polite">Preferencias sincronizadas</span>
+</header>
+
+<div class="orizon-appearance-layout">
+    <div class="orizon-appearance-sections">
+        <section class="orizon-appearance-section">
+            <header class="orizon-appearance-section__header"><div><h2>Tema</h2><p>Escolha uma identidade visual completa.</p></div></header>
+            <div class="orizon-theme-grid">
+                @foreach (var theme in Model.Themes) { <orizon-theme-card theme="@theme.Id" title="@theme.Name" description="@theme.Description" /> }
+            </div>
+        </section>
+
+        <section class="orizon-appearance-section">
+            <header class="orizon-appearance-section__header"><div><h2>Cor primaria</h2><p>Altere o destaque sem modificar o restante do tema.</p></div></header>
+            <div class="orizon-color-options" aria-label="Cor primaria">
+                @foreach (var color in new[] { "blue", "green", "purple", "red", "orange", "cyan" }) { <button type="button" class="orizon-color-swatch appearance-swatch-@color" data-appearance-key="primaryColor" data-appearance-value="@color" aria-label="@color"></button> }
+            </div>
+        </section>
+
+        @Selector("Modo", "Aparencia clara, escura ou conforme o sistema.", "mode", new[] { ("light", "Claro", "ph ph-sun"), ("dark", "Escuro", "ph ph-moon"), ("auto", "Automatico", "ph ph-desktop") })
+        @Selector("Densidade", "Controle o espacamento de tabelas, formularios, listas e cards.", "density", new[] { ("compact", "Compacto", "ph ph-arrows-in"), ("normal", "Normal", "ph ph-square"), ("comfortable", "Confortavel", "ph ph-arrows-out") })
+        @Selector("Sidebar", "Defina como a navegacao lateral deve iniciar.", "sidebar", new[] { ("expanded", "Expandida", "ph ph-sidebar"), ("collapsed", "Recolhida", "ph ph-sidebar-simple"), ("icons", "Icones apenas", "ph ph-squares-four") })
+        @Selector("Tipografia", "Ajuste a escala de leitura da plataforma.", "fontSize", new[] { ("small", "Pequena", "ph ph-text-aa"), ("normal", "Normal", "ph ph-text-t"), ("large", "Grande", "ph ph-text-h") })
+        @Selector("Bordas", "Escolha o nivel de arredondamento dos componentes.", "radius", new[] { ("square", "Quadradas", "ph ph-square"), ("soft", "Leves", "ph ph-selection"), ("rounded", "Arredondadas", "ph ph-circle") })
+        @Selector("Sombras", "Controle a elevacao visual das superficies.", "shadow", new[] { ("minimal", "Minimalista", "ph ph-minus"), ("standard", "Padrao", "ph ph-stack"), ("elevated", "Elevada", "ph ph-cube") })
+        @Selector("Animacoes", "Configure movimento e transicoes da interface.", "motion", new[] { ("normal", "Normal", "ph ph-play"), ("reduced", "Reduzida", "ph ph-skip-forward"), ("none", "Desativada", "ph ph-pause") })
+
+        <section class="orizon-appearance-section" data-company-appearance>
+            <header class="orizon-appearance-section__header"><div><h2>Identidade da empresa</h2><p>Padroes aplicados a todos os usuarios do tenant.</p></div></header>
+            <form class="appearance-company-form" data-company-form>
+                <label class="orizon-field"><span class="orizon-field__label">Titulo da tela de login</span><input class="orizon-input" name="loginTitle" value="@Model.Preferences.LoginTitle" maxlength="120" /></label>
+                <label class="orizon-field"><span class="orizon-field__label">Logo</span><input class="orizon-input" type="file" name="logo" accept="image/*" data-company-asset="logoPath" /></label>
+                <label class="orizon-field"><span class="orizon-field__label">Favicon</span><input class="orizon-input" type="file" name="favicon" accept="image/*" data-company-asset="faviconPath" /></label>
+                <label class="orizon-field"><span class="orizon-field__label">Imagem de fundo do login</span><input class="orizon-input" type="file" name="background" accept="image/*" data-company-asset="loginBackgroundPath" /></label>
+                <button class="orizon-button orizon-button--primary" type="submit">Salvar padrao da empresa</button>
+            </form>
+        </section>
+    </div>
+    <orizon-preview-panel title="Preview em tempo real" />
+</div>
+
+@section Scripts { <script src="~/js/appearance-page.js" asp-append-version="true"></script> }
+
+@functions {
+    private Microsoft.AspNetCore.Html.IHtmlContent Selector(string title, string description, string key, (string Value, string Label, string Icon)[] options)
+    {
+        var html = new System.Text.StringBuilder($"<section class='orizon-appearance-section'><header class='orizon-appearance-section__header'><div><h2>{title}</h2><p>{description}</p></div></header><div class='orizon-appearance-options'>");
+        foreach (var option in options) html.Append($"<button type='button' class='orizon-appearance-option' data-appearance-key='{key}' data-appearance-value='{option.Value}' aria-pressed='false'><span class='orizon-appearance-option__icon'><i class='{option.Icon}'></i></span><span><strong>{option.Label}</strong></span></button>");
+        html.Append("</div></section>"); return new Microsoft.AspNetCore.Html.HtmlString(html.ToString());
+    }
+}
