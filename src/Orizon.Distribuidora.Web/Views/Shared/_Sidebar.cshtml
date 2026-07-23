@@ -1,10 +1,18 @@
 @using Orizon.Distribuidora.Web.Areas.Admin.Models.BasicRegistrations
+
 @{
     var applicationName = ViewData["ApplicationName"]?.ToString() ?? "Distribuidora";
+
     var currentPath = Context.Request.Path.Value ?? string.Empty;
-    bool IsActive(string path) => currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
-    var registrationsActive = currentPath.StartsWith("/Admin/Cadastros", StringComparison.OrdinalIgnoreCase);
-    var settingsActive = currentPath.StartsWith("/Admin/Settings", StringComparison.OrdinalIgnoreCase)
+
+    bool IsActive(string path) =>
+        currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+
+    var registrationsActive =
+        currentPath.StartsWith("/Admin/Cadastros", StringComparison.OrdinalIgnoreCase);
+
+    var settingsActive =
+        currentPath.StartsWith("/Admin/Settings", StringComparison.OrdinalIgnoreCase)
         || currentPath.StartsWith("/Admin/Appearance", StringComparison.OrdinalIgnoreCase)
         || currentPath.StartsWith("/Admin/Company", StringComparison.OrdinalIgnoreCase)
         || currentPath.StartsWith("/Admin/Users", StringComparison.OrdinalIgnoreCase)
@@ -14,88 +22,343 @@
 }
 
 <div class="orizon-sidebar-header">
-    <a class="orizon-sidebar-brand" href="/Admin/Dashboard" data-last-page-link aria-label="@applicationName — página inicial">
-        <span class="orizon-sidebar-brand-mark" aria-hidden="true">O</span>
-        <span class="orizon-sidebar-brand-content">
-            <strong class="orizon-sidebar-brand-name">Orizon</strong>
-            <span class="orizon-sidebar-brand-product">@applicationName</span>
+
+    <a class="orizon-sidebar-brand"
+       href="/Admin/Dashboard"
+       data-last-page-link
+       aria-label="@applicationName">
+
+        <span class="orizon-sidebar-brand-mark"
+              aria-hidden="true">
+            O
         </span>
+
+        <span class="orizon-sidebar-brand-content">
+
+            <strong class="orizon-sidebar-brand-name">
+                Orizon
+            </strong>
+
+            <span class="orizon-sidebar-brand-product">
+                @applicationName
+            </span>
+
+        </span>
+
     </a>
-    <button type="button" class="orizon-sidebar-collapse-button" data-sidebar-collapse
-            aria-label="Recolher menu lateral" aria-expanded="true" title="Recolher menu">
+
+    <button type="button"
+            class="orizon-sidebar-collapse-button"
+            data-sidebar-collapse
+            aria-label="Recolher menu"
+            aria-expanded="true"
+            title="Recolher menu">
+
         <orizon-icon name="chevron-left" size="18" />
+
     </button>
+
 </div>
 
-<nav class="orizon-sidebar-navigation" aria-label="Navegação administrativa">
-    <a class="orizon-sidebar-link @(IsActive("/Admin/Dashboard") ? "is-active" : null)" href="/Admin/Dashboard" data-tooltip="Dashboard">
-        <orizon-icon name="house" size="20" class="orizon-sidebar-link-icon" />
-        <span class="orizon-sidebar-link-label">Dashboard</span>
-    </a>
-    <a class="orizon-sidebar-link @(IsActive("/Admin/Products") ? "is-active" : null)" href="/Admin/Products" data-tooltip="Produtos">
-        <orizon-icon name="package" size="20" class="orizon-sidebar-link-icon" />
-        <span class="orizon-sidebar-link-label">Produtos</span>
-    </a>
-    <a class="orizon-sidebar-link @(IsActive("/Admin/Importacao") ? "is-active" : null)" href="/Admin/Importacao" data-tooltip="Estoque">
-        <orizon-icon name="warehouse" size="20" class="orizon-sidebar-link-icon" />
-        <span class="orizon-sidebar-link-label">Estoque</span>
-    </a>
+<nav class="orizon-sidebar-navigation"
+     aria-label="Navegação administrativa">
 
-    @foreach (var item in new[] { ("shopping-cart", "Compras"), ("receipt", "Vendas"), ("currency-dollar", "Financeiro") })
-    {
-        <span class="orizon-sidebar-link is-disabled" aria-disabled="true" data-tooltip="@item.Item2 — em breve" tabindex="0">
-            <orizon-icon name="@item.Item1" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">@item.Item2</span>
-            <span class="orizon-sidebar-soon">Em breve</span>
+    <!-- ===================================================== -->
+    <!-- VISÃO GERAL                                           -->
+    <!-- ===================================================== -->
+
+    <section class="orizon-sidebar-section">
+
+        <span class="orizon-sidebar-section-title">
+            Visão Geral
         </span>
-    }
 
-    <div class="orizon-sidebar-group @(registrationsActive ? "is-expanded" : null)" data-sidebar-group="registrations">
-        <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(registrationsActive ? "is-active" : null)"
-                data-sidebar-group-toggle aria-expanded="@(registrationsActive.ToString().ToLowerInvariant())" aria-controls="sidebar-registrations" data-tooltip="Cadastros">
-            <orizon-icon name="address-book" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Cadastros</span>
-            <orizon-icon name="chevron-down" size="16" class="orizon-sidebar-group-chevron" />
-        </button>
-        <div id="sidebar-registrations" class="orizon-sidebar-submenu" data-sidebar-submenu>
-            @foreach (var module in BasicRegistrationModule.All)
-            {
-                var href = $"/Admin/Cadastros/{module.Key}";
-                var label = module.Key switch { "unidades-medida" => "Unidades", "parceiros-comerciais" => "Parceiros", "localizacoes-internas" => "Localizações", "status-cadastro" => "Status", _ => module.Title };
-                <a class="orizon-sidebar-sublink @(IsActive(href) ? "is-active" : null)" href="@href">@label</a>
-            }
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Dashboard") ? "is-active" : null)"
+           href="/Admin/Dashboard"
+           data-tooltip="Dashboard">
+
+            <orizon-icon name="house"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Dashboard
+            </span>
+
+        </a>
+
+    </section>
+
+    <!-- ===================================================== -->
+    <!-- OPERAÇÃO                                              -->
+    <!-- ===================================================== -->
+
+    <section class="orizon-sidebar-section">
+
+        <span class="orizon-sidebar-section-title">
+            Operação
+        </span>
+
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Products") ? "is-active" : null)"
+           href="/Admin/Products"
+           data-tooltip="Produtos">
+
+            <orizon-icon name="package"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Produtos
+            </span>
+
+        </a>
+
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Importacao") ? "is-active" : null)"
+           href="/Admin/Importacao"
+           data-tooltip="Estoque">
+
+            <orizon-icon name="warehouse"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Estoque
+            </span>
+
+        </a>
+
+        <span class="orizon-sidebar-link is-disabled"
+              aria-disabled="true"
+              tabindex="0">
+
+            <orizon-icon name="shopping-cart"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Compras
+            </span>
+
+            <span class="orizon-sidebar-badge">
+                Beta
+            </span>
+
+        </span>
+
+        <span class="orizon-sidebar-link is-disabled"
+              aria-disabled="true"
+              tabindex="0">
+
+            <orizon-icon name="receipt"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Vendas
+            </span>
+
+            <span class="orizon-sidebar-badge">
+                Beta
+            </span>
+
+        </span>
+
+        <span class="orizon-sidebar-link is-disabled"
+              aria-disabled="true"
+              tabindex="0">
+
+            <orizon-icon name="currency-dollar"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Financeiro
+            </span>
+
+            <span class="orizon-sidebar-badge">
+                Beta
+            </span>
+
+        </span>
+
+    </section>
+
+    <!-- ===================================================== -->
+    <!-- ADMINISTRAÇÃO                                         -->
+    <!-- ===================================================== -->    <section class="orizon-sidebar-section">
+
+        <span class="orizon-sidebar-section-title">
+            Administração
+        </span>
+
+        <div class="orizon-sidebar-group @(registrationsActive ? "is-expanded" : null)"
+             data-sidebar-group="registrations">
+
+            <button type="button"
+                    class="orizon-sidebar-link orizon-sidebar-group-toggle @(registrationsActive ? "is-active" : null)"
+                    data-sidebar-group-toggle
+                    aria-expanded="@(registrationsActive.ToString().ToLowerInvariant())"
+                    aria-controls="sidebar-registrations"
+                    data-tooltip="Cadastros">
+
+                <orizon-icon name="address-book"
+                              size="20"
+                              class="orizon-sidebar-link-icon" />
+
+                <span class="orizon-sidebar-link-label">
+                    Cadastros
+                </span>
+
+                <orizon-icon name="chevron-down"
+                              size="16"
+                              class="orizon-sidebar-group-chevron" />
+
+            </button>
+
+            <div id="sidebar-registrations"
+                 class="orizon-sidebar-submenu"
+                 data-sidebar-submenu>
+
+                @foreach (var module in BasicRegistrationModule.All)
+                {
+                    var href = $"/Admin/Cadastros/{module.Key}";
+
+                    var label = module.Key switch
+                    {
+                        "unidades-medida" => "Unidades",
+                        "parceiros-comerciais" => "Parceiros",
+                        "localizacoes-internas" => "Localizações",
+                        "status-cadastro" => "Status",
+                        _ => module.Title
+                    };
+
+                    <a class="orizon-sidebar-sublink @(IsActive(href) ? "is-active" : null)"
+                       href="@href">
+
+                        @label
+
+                    </a>
+                }
+
+            </div>
+
         </div>
-    </div>
 
-    <div class="orizon-sidebar-group @(settingsActive ? "is-expanded" : null)" data-sidebar-group="settings">
-        <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(settingsActive ? "is-active" : null)"
-                data-sidebar-group-toggle aria-expanded="@(settingsActive.ToString().ToLowerInvariant())" aria-controls="sidebar-settings" data-tooltip="Configurações">
-            <orizon-icon name="gear" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Configurações</span>
-            <orizon-icon name="chevron-down" size="16" class="orizon-sidebar-group-chevron" />
-        </button>
-        <div id="sidebar-settings" class="orizon-sidebar-submenu" data-sidebar-submenu>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Company") ? "is-active" : null)" href="/Admin/Company">Empresa</a>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Users") ? "is-active" : null)" href="/Admin/Users">Usuários</a>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Roles") ? "is-active" : null)" href="/Admin/Roles">Perfis</a>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Appearance") ? "is-active" : null)" href="/Admin/Appearance">Aparência</a>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Preferences") ? "is-active" : null)" href="/Admin/Preferences">Preferências</a>
-            <a class="orizon-sidebar-sublink @(IsActive("/Admin/Audit") ? "is-active" : null)" href="/Admin/Audit">Auditoria</a>
+        <div class="orizon-sidebar-group @(settingsActive ? "is-expanded" : null)"
+             data-sidebar-group="settings">
+
+            <button type="button"
+                    class="orizon-sidebar-link orizon-sidebar-group-toggle @(settingsActive ? "is-active" : null)"
+                    data-sidebar-group-toggle
+                    aria-expanded="@(settingsActive.ToString().ToLowerInvariant())"
+                    aria-controls="sidebar-settings"
+                    data-tooltip="Configurações">
+
+                <orizon-icon name="gear"
+                              size="20"
+                              class="orizon-sidebar-link-icon" />
+
+                <span class="orizon-sidebar-link-label">
+                    Configurações
+                </span>
+
+                <orizon-icon name="chevron-down"
+                              size="16"
+                              class="orizon-sidebar-group-chevron" />
+
+            </button>
+
+            <div id="sidebar-settings"
+                 class="orizon-sidebar-submenu"
+                 data-sidebar-submenu>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Company") ? "is-active" : null)"
+                   href="/Admin/Company">
+                    Empresa
+                </a>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Users") ? "is-active" : null)"
+                   href="/Admin/Users">
+                    Usuários
+                </a>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Roles") ? "is-active" : null)"
+                   href="/Admin/Roles">
+                    Perfis
+                </a>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Appearance") ? "is-active" : null)"
+                   href="/Admin/Appearance">
+                    Aparência
+                </a>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Preferences") ? "is-active" : null)"
+                   href="/Admin/Preferences">
+                    Preferências
+                </a>
+
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Audit") ? "is-active" : null)"
+                   href="/Admin/Audit">
+                    Auditoria
+                </a>
+
+            </div>
+
         </div>
-    </div>
 
-    <a class="orizon-sidebar-link" href="/Admin/Help" data-tooltip="Ajuda">
-        <orizon-icon name="question" size="20" class="orizon-sidebar-link-icon" />
-        <span class="orizon-sidebar-link-label">Ajuda</span>
-    </a>
+    </section>
+
+    <section class="orizon-sidebar-section">
+
+        <span class="orizon-sidebar-section-title">
+            Suporte
+        </span>
+
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Help") ? "is-active" : null)"
+           href="/Admin/Help"
+           data-tooltip="Ajuda">
+
+            <orizon-icon name="question"
+                          size="20"
+                          class="orizon-sidebar-link-icon" />
+
+            <span class="orizon-sidebar-link-label">
+                Ajuda
+            </span>
+
+        </a>
+
+    </section>
+
 </nav>
 
 <div class="orizon-sidebar-footer">
+
     <div class="orizon-sidebar-user">
-        <span class="orizon-sidebar-user-avatar" aria-hidden="true">OR</span>
+
+        <span class="orizon-sidebar-user-avatar"
+              aria-hidden="true">
+
+            OR
+
+        </span>
+
         <div class="orizon-sidebar-user-content">
-            <strong class="orizon-sidebar-user-name">@(User.Identity?.Name ?? "Usuário Orizon")</strong>
-            <span class="orizon-sidebar-user-role">Administrador</span>
+
+            <strong class="orizon-sidebar-user-name">
+
+                @(User.Identity?.Name ?? "Usuário Orizon")
+
+            </strong>
+
+            <span class="orizon-sidebar-user-role">
+
+                Administrador
+
+            </span>
+
         </div>
+
     </div>
+
 </div>
