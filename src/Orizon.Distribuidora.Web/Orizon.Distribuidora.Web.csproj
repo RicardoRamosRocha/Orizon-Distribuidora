@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Orizon.UI" Version="1.0.0-rc.1" />
+    <PackageReference Include="Orizon.UI" Version="1.0.1" />
 </ItemGroup>
 
   <PropertyGroup>
