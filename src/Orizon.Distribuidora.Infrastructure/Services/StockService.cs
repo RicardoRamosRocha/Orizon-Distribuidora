@@ -121,7 +121,9 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
     }
 
     public async Task<StockBalanceDto?> GetStockBalanceAsync(Guid companyId, Guid productId, Guid warehouseId, CancellationToken cancellationToken = default) =>
-        await BalanceQuery(companyId).FirstOrDefaultAsync(x => x.ProductId == productId && x.WarehouseId == warehouseId, cancellationToken);
+        await ProjectBalances(BalanceQuery(companyId)
+            .Where(x => x.ProductId == productId && x.WarehouseId == warehouseId))
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<StockBalanceDto>> ListStockBalancesAsync(Guid companyId, StockBalanceFilter filter, CancellationToken cancellationToken = default)
     {
@@ -130,36 +132,36 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
         var query = BalanceQuery(companyId);
         if (filter.ProductId.HasValue) query = query.Where(x => x.ProductId == filter.ProductId);
         if (filter.WarehouseId.HasValue) query = query.Where(x => x.WarehouseId == filter.WarehouseId);
-        if (filter.CategoryId.HasValue) query = query.Where(x => db.Products.Any(p => p.Id == x.ProductId && p.CompanyId == companyId && p.CategoryId == filter.CategoryId));
-        if (filter.OnlyBelowMinimum) query = query.Where(x => x.MinimumStock.HasValue && x.CurrentQuantity < x.MinimumStock);
-        if (filter.OnlyActive) query = query.Where(x => db.Products.Any(p => p.Id == x.ProductId && p.CompanyId == companyId && p.IsActive && p.ControlsStock));
+        if (filter.CategoryId.HasValue) query = query.Where(x => x.Product!.CategoryId == filter.CategoryId);
+        if (filter.OnlyBelowMinimum) query = query.Where(x => x.Product!.MinimumStock.HasValue && x.QuantityOnHand < x.Product.MinimumStock);
+        if (filter.OnlyActive) query = query.Where(x => x.Product!.IsActive);
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var term = filter.Search.Trim();
-            query = query.Where(x => EF.Functions.ILike(x.ProductCode, $"%{term}%") || EF.Functions.ILike(x.ProductName, $"%{term}%"));
+            query = query.Where(x => EF.Functions.ILike(x.Product!.InternalCode, $"%{term}%") || EF.Functions.ILike(x.Product.Name, $"%{term}%"));
         }
         query = filter.Status switch
         {
-            StockLevelStatus.Normal => query.Where(x => !x.IsOutOfStock && (!x.MinimumStock.HasValue || x.CurrentQuantity >= x.MinimumStock)),
-            StockLevelStatus.BelowMinimum => query.Where(x => x.MinimumStock.HasValue && x.CurrentQuantity < x.MinimumStock && x.CurrentQuantity != 0),
-            StockLevelStatus.OutOfStock => query.Where(x => x.CurrentQuantity == 0),
-            StockLevelStatus.NoMinimum => query.Where(x => !x.MinimumStock.HasValue),
+            StockLevelStatus.Normal => query.Where(x => x.QuantityOnHand != 0 && (!x.Product!.MinimumStock.HasValue || x.QuantityOnHand >= x.Product.MinimumStock)),
+            StockLevelStatus.BelowMinimum => query.Where(x => x.Product!.MinimumStock.HasValue && x.QuantityOnHand < x.Product.MinimumStock && x.QuantityOnHand != 0),
+            StockLevelStatus.OutOfStock => query.Where(x => x.QuantityOnHand == 0),
+            StockLevelStatus.NoMinimum => query.Where(x => !x.Product!.MinimumStock.HasValue),
             _ => query
         };
         var total = await query.CountAsync(cancellationToken);
         query = (filter.SortBy.ToLowerInvariant(), filter.SortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase)) switch
         {
-            ("quantity", true) => query.OrderByDescending(x => x.CurrentQuantity).ThenBy(x => x.ProductName),
-            ("quantity", false) => query.OrderBy(x => x.CurrentQuantity).ThenBy(x => x.ProductName),
-            ("warehouse", true) => query.OrderByDescending(x => x.WarehouseName).ThenBy(x => x.ProductName),
-            ("warehouse", false) => query.OrderBy(x => x.WarehouseName).ThenBy(x => x.ProductName),
-            ("code", true) => query.OrderByDescending(x => x.ProductCode).ThenBy(x => x.WarehouseName),
-            ("code", false) => query.OrderBy(x => x.ProductCode).ThenBy(x => x.WarehouseName),
-            (_, true) => query.OrderByDescending(x => x.ProductName).ThenBy(x => x.WarehouseName),
-            _ => query.OrderBy(x => x.ProductName).ThenBy(x => x.WarehouseName)
+            ("quantity", true) => query.OrderByDescending(x => x.QuantityOnHand).ThenBy(x => x.Product!.Name).ThenBy(x => x.Id),
+            ("quantity", false) => query.OrderBy(x => x.QuantityOnHand).ThenBy(x => x.Product!.Name).ThenBy(x => x.Id),
+            ("warehouse", true) => query.OrderByDescending(x => x.Warehouse!.Name).ThenBy(x => x.Product!.Name).ThenBy(x => x.Id),
+            ("warehouse", false) => query.OrderBy(x => x.Warehouse!.Name).ThenBy(x => x.Product!.Name).ThenBy(x => x.Id),
+            ("code", true) => query.OrderByDescending(x => x.Product!.InternalCode).ThenBy(x => x.Warehouse!.Name).ThenBy(x => x.Id),
+            ("code", false) => query.OrderBy(x => x.Product!.InternalCode).ThenBy(x => x.Warehouse!.Name).ThenBy(x => x.Id),
+            (_, true) => query.OrderByDescending(x => x.Product!.Name).ThenBy(x => x.Warehouse!.Name).ThenBy(x => x.Id),
+            _ => query.OrderBy(x => x.Product!.Name).ThenBy(x => x.Warehouse!.Name).ThenBy(x => x.Id)
         };
-        var items = await query
-            .Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
+        var items = await ProjectBalances(query.Skip((page - 1) * size).Take(size))
+            .ToListAsync(cancellationToken);
         return new(items, page, size, total);
     }
 
@@ -227,16 +229,24 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
         return new(products, warehouses, categories, locations);
     }
 
-    private IQueryable<StockBalanceDto> BalanceQuery(Guid companyId) =>
-        from balance in db.StockBalances.AsNoTracking()
-        join product in db.Products.AsNoTracking() on new { balance.CompanyId, Id = balance.ProductId } equals new { product.CompanyId, product.Id }
-        join warehouse in db.Warehouses.AsNoTracking() on new { balance.CompanyId, Id = balance.WarehouseId } equals new { warehouse.CompanyId, warehouse.Id }
-        where balance.CompanyId == companyId && product.ControlsStock
-        select new StockBalanceDto(balance.Id, product.Id, product.InternalCode, product.Name,
-            warehouse.Id, warehouse.Name, balance.QuantityOnHand, product.MinimumStock,
-            product.MinimumStock.HasValue ? balance.QuantityOnHand - product.MinimumStock.Value : null,
-            product.MinimumStock.HasValue && balance.QuantityOnHand < product.MinimumStock.Value,
+    private IQueryable<StockBalance> BalanceQuery(Guid companyId) =>
+        db.StockBalances.AsNoTracking().Where(balance =>
+            balance.CompanyId == companyId &&
+            balance.Product!.CompanyId == companyId &&
+            balance.Product.ControlsStock &&
+            balance.Warehouse!.CompanyId == companyId);
+
+    private static IQueryable<StockBalanceDto> ProjectBalances(IQueryable<StockBalance> query) =>
+        query.Select(balance => new StockBalanceDto(balance.Id, balance.ProductId,
+            balance.Product!.InternalCode, balance.Product.Name,
+            balance.WarehouseId, balance.Warehouse!.Name, balance.QuantityOnHand,
+            balance.Product.MinimumStock,
+            balance.Product.MinimumStock.HasValue
+                ? balance.QuantityOnHand - balance.Product.MinimumStock.Value
+                : null,
+            balance.Product.MinimumStock.HasValue &&
+                balance.QuantityOnHand < balance.Product.MinimumStock.Value,
             balance.QuantityOnHand == 0, balance.LastMovementAt,
-            product.Category != null ? product.Category.Name : null,
-            product.UnitOfMeasure != null ? product.UnitOfMeasure.Abbreviation : null);
+            balance.Product.Category != null ? balance.Product.Category.Name : null,
+            balance.Product.UnitOfMeasure != null ? balance.Product.UnitOfMeasure.Abbreviation : null));
 }
