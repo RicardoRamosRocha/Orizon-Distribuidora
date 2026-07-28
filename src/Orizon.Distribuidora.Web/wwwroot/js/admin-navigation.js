@@ -21,17 +21,25 @@
         shell.classList.add("is-sidebar-collapsed");
     }
 
-    const savedGroups = new Set((safeRead(storage.groups, "") || "").split(",").filter(Boolean));
-    document.querySelectorAll("[data-sidebar-group]").forEach(group => {
-        const key = group.dataset.sidebarGroup;
-        if (savedGroups.has(key)) group.classList.add("is-expanded");
+    const groups = [...document.querySelectorAll("[data-sidebar-group]")];
+    const routeGroup = groups.find(group => group.classList.contains("is-expanded"));
+    const savedGroup = (safeRead(storage.groups, "") || "").split(",").find(Boolean);
+    const initialGroup = routeGroup ?? groups.find(group => group.dataset.sidebarGroup === savedGroup);
+    const setExpandedGroup = expandedGroup => {
+        groups.forEach(group => {
+            const expanded = group === expandedGroup;
+            group.classList.toggle("is-expanded", expanded);
+            group.querySelector("[data-sidebar-group-toggle]")
+                ?.setAttribute("aria-expanded", String(expanded));
+        });
+        safeWrite(storage.groups, expandedGroup?.dataset.sidebarGroup ?? "");
+    };
+
+    setExpandedGroup(initialGroup);
+    groups.forEach(group => {
         const toggle = group.querySelector("[data-sidebar-group-toggle]");
-        toggle?.setAttribute("aria-expanded", String(group.classList.contains("is-expanded")));
         toggle?.addEventListener("click", () => {
-            group.classList.toggle("is-expanded");
-            toggle.setAttribute("aria-expanded", String(group.classList.contains("is-expanded")));
-            const expanded = [...document.querySelectorAll("[data-sidebar-group].is-expanded")].map(item => item.dataset.sidebarGroup);
-            safeWrite(storage.groups, expanded.join(","));
+            setExpandedGroup(group.classList.contains("is-expanded") ? null : group);
         });
     });
 
@@ -40,16 +48,23 @@
         safeWrite(storage.collapsed, String(collapsed));
         const button = document.querySelector("[data-sidebar-collapse]");
         button?.setAttribute("aria-expanded", String(!collapsed));
-        if (button) button.setAttribute("aria-label", collapsed ? "Expandir menu lateral" : "Recolher menu lateral");
+        if (button) {
+            const action = collapsed ? "Expandir menu" : "Recolher menu";
+            button.setAttribute("aria-label", `${action} lateral`);
+            button.setAttribute("data-tooltip", action);
+            const label = button.querySelector(".orizon-sidebar-link-label");
+            if (label) label.textContent = action;
+        }
     };
     document.querySelectorAll("[data-sidebar-collapse], [data-sidebar-toggle]").forEach(button =>
         button.addEventListener("click", () => window.setTimeout(syncCollapsedState, 0)));
+    syncCollapsedState();
 
     if (location.pathname.startsWith("/Admin/")) safeWrite(storage.lastPage, location.pathname + location.search);
     const lastPage = safeRead(storage.lastPage);
     if (lastPage?.startsWith("/Admin/")) document.querySelector("[data-last-page-link]")?.setAttribute("href", lastPage);
 
-    document.querySelectorAll(".orizon-sidebar-sublink, .orizon-sidebar-navigation > .orizon-sidebar-link").forEach(link => {
+    document.querySelectorAll(".orizon-sidebar-navigation a, .orizon-sidebar-footer a").forEach(link => {
         link.addEventListener("click", () => {
             if (!desktop.matches) shell.classList.remove("is-sidebar-open");
         });
