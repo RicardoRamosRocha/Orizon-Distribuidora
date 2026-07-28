@@ -1,98 +1,180 @@
+@model DashboardViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["ApplicationName"] = "Distribuidora";
+    var culture = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
 }
 
-<header class="orizon-page-header">
-    <div>
-        <h1 class="orizon-page-title">Dashboard</h1>
+@section Styles {
+    <link rel="stylesheet" href="~/_content/Orizon.UI/css/components/dashboard-premium.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/_content/Orizon.UI/css/components/charts-premium.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard-premium.css" asp-append-version="true" />
+}
 
-        <p class="orizon-page-description">
-            Visão geral da operação da distribuidora.
-        </p>
-    </div>
-
-    <orizon-button variant="primary"
-                   icon="plus">
-        Novo produto
-    </orizon-button>
-</header>
-
-<section class="orizon-dashboard-grid"
-         aria-label="Indicadores principais">
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Produtos cadastrados
-            </span>
-
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Produtos próprios e intermediados
+<div class="dashboard-premium" data-dashboard>
+    <header class="dashboard-hero">
+        <div class="dashboard-hero__copy">
+            <div class="dashboard-eyebrow">
+                <span>Olá, @Model.UserFirstName</span>
+                <span class="dashboard-demo-badge"><orizon-icon name="info" size="16"></orizon-icon> Dados de demonstração</span>
+            </div>
+            <h1>Visão geral</h1>
+            <p>Acompanhe os principais sinais da operação, do catálogo ao desempenho comercial.</p>
+            <span class="dashboard-updated">
+                Atualizado em <time datetime="@Model.UpdatedAt.ToString("O")">@Model.UpdatedAt.ToString("dd/MM/yyyy 'às' HH:mm", culture)</time>
             </span>
         </div>
-    </orizon-card>
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Estoque físico
-            </span>
-
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Itens disponíveis
-            </span>
+        <div class="dashboard-hero__actions">
+            <label class="dashboard-period">
+                <span>Período</span>
+                <select data-period aria-label="Período do dashboard">
+                    <option value="today">Hoje</option>
+                    <option value="7days">7 dias</option>
+                    <option value="30days" selected>30 dias</option>
+                    <option value="month">Este mês</option>
+                    <option value="custom">Personalizado</option>
+                </select>
+            </label>
+            <button class="dashboard-button dashboard-button--secondary" type="button" data-refresh>
+                <orizon-icon name="refresh-cw" size="16"></orizon-icon> Atualizar
+            </button>
+            <a class="dashboard-button dashboard-button--primary" asp-area="Admin" asp-controller="Products" asp-action="Create">
+                <orizon-icon name="plus" size="16"></orizon-icon> Novo produto
+            </a>
         </div>
-    </orizon-card>
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Estoque baixo
-            </span>
-
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Produtos que exigem atenção
-            </span>
+        <div class="dashboard-custom-period" data-custom-period hidden>
+            <label>Data inicial <input type="date" data-date-start /></label>
+            <label>Data final <input type="date" data-date-end /></label>
+            <button type="button" class="dashboard-button dashboard-button--primary" data-apply-custom>Aplicar</button>
         </div>
-    </orizon-card>
+    </header>
 
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Vendas do mês
-            </span>
+    <section class="dashboard-kpis" aria-label="Indicadores executivos">
+        <article class="orizon-metric-card orizon-metric-card--positive" data-demo-kpi="revenue">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="trending-up"></orizon-icon></span><div><strong>Faturamento</strong><small>Demonstração</small></div></header>
+            <div class="orizon-metric-card__value"><strong data-value>—</strong><span data-change>—</span></div>
+            <div class="orizon-metric-card__sparkline" data-sparkline aria-hidden="true"></div>
+            <footer>Comparação com o período anterior</footer>
+        </article>
+        <article class="orizon-metric-card orizon-metric-card--positive" data-demo-kpi="sales">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="shopping-cart"></orizon-icon></span><div><strong>Total de vendas</strong><small>Demonstração</small></div></header>
+            <div class="orizon-metric-card__value"><strong data-value>—</strong><span data-change>—</span></div>
+            <div class="orizon-metric-card__sparkline" data-sparkline aria-hidden="true"></div>
+            <footer>Pedidos concluídos no período</footer>
+        </article>
+        <article class="orizon-metric-card" data-demo-kpi="ticket">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="receipt"></orizon-icon></span><div><strong>Ticket médio</strong><small>Demonstração</small></div></header>
+            <div class="orizon-metric-card__value"><strong data-value>—</strong><span>Neutro</span></div>
+            <div class="orizon-metric-card__sparkline" data-sparkline aria-hidden="true"></div>
+            <footer>Faturamento dividido pelas vendas</footer>
+        </article>
+        <article class="orizon-metric-card orizon-metric-card--positive">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="percent"></orizon-icon></span><div><strong>Margem média</strong><small>Real · catálogo</small></div></header>
+            <div class="orizon-metric-card__value"><strong>@Model.AverageMargin.ToString("N1", culture)%</strong><span>Atual</span></div>
+            <div class="dashboard-kpi-context"><b>@Model.ActiveProducts.ToString("N0", culture)</b> produtos ativos</div>
+            <footer>Calculada sobre custo e preço de venda</footer>
+        </article>
+        <article class="orizon-metric-card">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="package"></orizon-icon></span><div><strong>Valor do catálogo</strong><small>Real · preços</small></div></header>
+            <div class="orizon-metric-card__value"><strong>@Model.CatalogValue.ToString("C0", culture)</strong><span>Atual</span></div>
+            <div class="dashboard-kpi-context"><b>@Model.StockControlledProducts.ToString("N0", culture)</b> itens controlam estoque</div>
+            <footer>Soma dos preços dos produtos ativos</footer>
+        </article>
+        <article class="orizon-metric-card" data-demo-kpi="receivable">
+            <header><span class="orizon-metric-card__icon"><orizon-icon name="wallet"></orizon-icon></span><div><strong>A receber</strong><small>Demonstração</small></div></header>
+            <div class="orizon-metric-card__value"><strong data-value>—</strong><span data-change>Previsto</span></div>
+            <div class="dashboard-kpi-context" data-context>—</div>
+            <footer>Financeiro ainda não integrado</footer>
+        </article>
+    </section>
 
-            <strong class="orizon-stat-value">
-                R$ 0,00
-            </strong>
+    <section class="dashboard-charts" aria-label="Análises visuais">
+        <article class="orizon-dashboard-widget dashboard-chart-main" data-dashboard-widget>
+            <header><div class="orizon-dashboard-widget__heading"><span><orizon-icon name="chart-line"></orizon-icon></span><div><h2>Evolução comercial</h2><p>Faturamento e vendas · demonstração</p></div></div><span class="dashboard-source">Demo</span></header>
+            <div class="orizon-dashboard-widget__body"><div data-chart="commercial"></div><p class="dashboard-chart-summary" data-chart-summary="commercial"></p></div>
+        </article>
+        <article class="orizon-dashboard-widget" data-dashboard-widget>
+            <header><div class="orizon-dashboard-widget__heading"><span><orizon-icon name="pie-chart"></orizon-icon></span><div><h2>Composição das vendas</h2><p>Participação por categoria · demonstração</p></div></div><span class="dashboard-source">Demo</span></header>
+            <div class="orizon-dashboard-widget__body"><div data-chart="composition"></div><p class="dashboard-chart-summary" data-chart-summary="composition"></p></div>
+        </article>
+        <article class="orizon-dashboard-widget" data-dashboard-widget>
+            <header><div class="orizon-dashboard-widget__heading"><span><orizon-icon name="bar-chart-2"></orizon-icon></span><div><h2>Desempenho de produtos</h2><p>Faturamento por item · demonstração</p></div></div><span class="dashboard-source">Demo</span></header>
+            <div class="orizon-dashboard-widget__body"><div data-chart="ranking"></div><p class="dashboard-chart-summary" data-chart-summary="ranking"></p></div>
+        </article>
+        <article class="orizon-dashboard-widget" data-dashboard-widget>
+            <header><div class="orizon-dashboard-widget__heading"><span><orizon-icon name="layers"></orizon-icon></span><div><h2>Mix do catálogo</h2><p>Produtos ativos por categoria</p></div></div><span class="dashboard-source dashboard-source--real">Real</span></header>
+            <div class="orizon-dashboard-widget__body"><div data-chart="categories"></div><p class="dashboard-chart-summary" data-chart-summary="categories"></p></div>
+        </article>
+    </section>
 
-            <span class="orizon-stat-description">
-                Nenhuma venda registrada
-            </span>
+    <section class="dashboard-operations" aria-label="Resumo operacional">
+        <article class="dashboard-panel dashboard-panel--stock">
+            <header><div><span class="dashboard-panel__icon"><orizon-icon name="alert-triangle"></orizon-icon></span><div><h2>Estoque e reposição</h2><p>Alertas operacionais</p></div></div><span class="dashboard-source dashboard-source--real">Real</span></header>
+            <div class="dashboard-empty">
+                <orizon-icon name="package-check" size="32"></orizon-icon>
+                <strong>Saldo físico ainda não disponível</strong>
+                <p>O catálogo informa políticas de estoque, mas o domínio ainda não registra quantidades atuais. Nenhum alerta foi simulado.</p>
+                <a asp-area="Admin" asp-controller="Products" asp-action="Index">Ver produtos</a>
+            </div>
+        </article>
+
+        <article class="dashboard-panel">
+            <header><div><span class="dashboard-panel__icon"><orizon-icon name="award"></orizon-icon></span><div><h2>Produtos em destaque</h2><p>Melhores margens do catálogo</p></div></div><span class="dashboard-source dashboard-source--real">Real</span></header>
+            <div class="dashboard-ranking-list">
+                @if (Model.FeaturedProducts.Count == 0)
+                {
+                    <div class="dashboard-empty dashboard-empty--compact"><strong>Nenhum produto ativo</strong><p>Cadastre produtos para visualizar o ranking.</p></div>
+                }
+                @for (var index = 0; index < Model.FeaturedProducts.Count; index++)
+                {
+                    var product = Model.FeaturedProducts[index];
+                    <a asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@product.Id" class="dashboard-product">
+                        <span class="dashboard-product__rank">@(index + 1)</span>
+                        <span><strong title="@product.Name">@product.Name</strong><small>@product.Code · @product.Category</small></span>
+                        <span><strong>@product.Margin.ToString("N1", culture)%</strong><small>@product.Price.ToString("C2", culture)</small></span>
+                    </a>
+                }
+            </div>
+        </article>
+
+        <article class="dashboard-panel">
+            <header><div><span class="dashboard-panel__icon"><orizon-icon name="wallet"></orizon-icon></span><div><h2>Resumo financeiro</h2><p>Fluxo do período · demonstração</p></div></div><span class="dashboard-source">Demo</span></header>
+            <div class="dashboard-finance" data-finance></div>
+        </article>
+
+        <article class="dashboard-panel">
+            <header><div><span class="dashboard-panel__icon"><orizon-icon name="activity"></orizon-icon></span><div><h2>Atividade recente</h2><p>Movimentações no catálogo</p></div></div><span class="dashboard-source dashboard-source--real">Real</span></header>
+            <ol class="dashboard-timeline">
+                @if (Model.RecentActivities.Count == 0)
+                {
+                    <li class="dashboard-empty dashboard-empty--compact"><strong>Nenhuma atividade recente</strong><p>As próximas alterações aparecerão aqui.</p></li>
+                }
+                @foreach (var activity in Model.RecentActivities)
+                {
+                    <li><span aria-hidden="true"></span><div><strong>@activity.Title</strong><p>@activity.Description</p><time datetime="@activity.OccurredAt.ToString("O")">@activity.OccurredAt.ToString("dd/MM 'às' HH:mm", culture)</time></div></li>
+                }
+            </ol>
+        </article>
+    </section>
+
+    <section class="dashboard-shortcuts" aria-labelledby="dashboard-shortcuts-title">
+        <header><div><h2 id="dashboard-shortcuts-title">Atalhos operacionais</h2><p>Acesse rapidamente as rotinas mais utilizadas.</p></div></header>
+        <div>
+            <a asp-area="Admin" asp-controller="Products" asp-action="Create"><span><orizon-icon name="plus"></orizon-icon></span><strong>Novo produto</strong><small>Adicionar ao catálogo</small></a>
+            <a asp-area="Admin" asp-controller="Importacao" asp-action="Upload"><span><orizon-icon name="upload"></orizon-icon></span><strong>Importar planilha</strong><small>Atualizar em lote</small></a>
+            <a asp-area="Admin" asp-controller="Products" asp-action="Index"><span><orizon-icon name="package"></orizon-icon></span><strong>Produtos</strong><small>Consultar catálogo</small></a>
+            <a asp-area="Admin" asp-controller="Importacao" asp-action="Historico"><span><orizon-icon name="clock"></orizon-icon></span><strong>Histórico</strong><small>Auditar importações</small></a>
+            <a asp-area="Admin" asp-controller="BasicRegistrations" asp-action="Index" asp-route-moduleKey="categorias"><span><orizon-icon name="database"></orizon-icon></span><strong>Cadastros</strong><small>Organizar categorias</small></a>
         </div>
-    </orizon-card>
+    </section>
 
-</section>
+    <div class="dashboard-toast" data-toast role="status" aria-live="polite" hidden></div>
+    <script id="dashboard-data" type="application/json">@Json.Serialize(new { periods = Model.DemoPeriods, categories = Model.Categories })</script>
+</div>
 
-<section style="margin-top: 1.5rem;">
-    <orizon-card title="Fundação do sistema">
-        <orizon-alert variant="success"
-                      title="Orizon UI integrado">
-            A aplicação está usando o layout administrativo e os componentes
-            compartilhados do ecossistema Orizon.
-        </orizon-alert>
-    </orizon-card>
-</section>
+@section Scripts {
+    <script src="~/_content/Orizon.UI/js/components/charts-premium.js" asp-append-version="true"></script>
+    <script src="~/_content/Orizon.UI/js/components/dashboard-premium.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-premium.js" asp-append-version="true"></script>
+}
