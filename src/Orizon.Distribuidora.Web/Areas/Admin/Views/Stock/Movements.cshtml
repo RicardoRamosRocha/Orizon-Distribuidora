@@ -1,0 +1,23 @@
+@model Orizon.Distribuidora.Web.Areas.Admin.Models.Stock.StockHistoryViewModel
+@using Orizon.Distribuidora.Domain.Enums
+@{ ViewData["Title"]="Movimentações de estoque"; ViewData["ApplicationName"]="Distribuidora"; var f=Model.Filter; }
+@section Styles { <link rel="stylesheet" href="~/css/stock-premium.css" asp-append-version="true" /> }
+<section class="stock-workspace">
+ <header class="stock-header"><div><h1>Histórico de movimentações</h1><p>Registro somente leitura de entradas, saídas e ajustes.</p></div><a class="stock-button primary" asp-action="Index">Voltar ao estoque</a></header>
+ <form method="get" class="stock-filters">
+  <input type="search" name="Search" value="@f.Search" placeholder="Código ou produto" aria-label="Busca" />
+  <select name="ProductId"><option value="">Todos os produtos</option>@foreach(var x in Model.Options.Products){<option value="@x.Id" selected="@(f.ProductId==x.Id)">@x.Label</option>}</select>
+  <select name="WarehouseId"><option value="">Todos os depósitos</option>@foreach(var x in Model.Options.Warehouses){<option value="@x.Id" selected="@(f.WarehouseId==x.Id)">@x.Label</option>}</select>
+  <select name="Type" asp-for="Filter.Type"><option value="">Todos os tipos</option>@foreach(var x in Enum.GetValues<StockMovementType>()){<option value="@x">@x</option>}</select>
+  <select name="Direction" asp-for="Filter.Direction"><option value="">Todas as direções</option><option value="@StockMovementDirection.Inbound">Entrada</option><option value="@StockMovementDirection.Outbound">Saída</option></select>
+  <input type="date" name="From" value="@f.From?.ToString("yyyy-MM-dd")" aria-label="Período inicial" /><input type="date" name="To" value="@f.To?.ToString("yyyy-MM-dd")" aria-label="Período final" />
+  <input name="DocumentOrReference" value="@f.DocumentOrReference" placeholder="Documento / referência" />
+  <button class="stock-button primary">Filtrar</button><a class="stock-button" asp-action="Movements">Limpar</a>
+ </form>
+ <section class="stock-grid-card"><div class="stock-grid-heading"><h2>Movimentações</h2><span>@Model.Movements.TotalCount registro(s)</span></div>
+ <div class="stock-grid-scroll" tabindex="0"><table class="stock-grid"><thead><tr><th>Data e hora</th><th>Produto</th><th>Depósito</th><th>Localização</th><th>Tipo</th><th>Direção</th><th class="num">Quantidade</th><th class="num">Anterior</th><th class="num">Resultante</th><th class="num">Custo unit.</th><th>Motivo</th><th>Documento</th><th>Referência</th><th>Usuário</th></tr></thead><tbody>
+ @if(Model.Movements.Items.Count==0){<tr><td colspan="14" class="stock-empty"><strong>Nenhuma movimentação encontrada</strong><span>Não há registros para os filtros informados.</span></td></tr>}
+ @foreach(var x in Model.Movements.Items){var inbound=x.Direction==StockMovementDirection.Inbound;<tr><td>@x.OccurredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><strong>@x.ProductName</strong><small>@x.ProductCode</small></td><td>@x.WarehouseName</td><td>@(x.InternalLocationName??"—")</td><td>@x.Type</td><td>@(inbound?"Entrada":"Saída")</td><td class="num movement @(inbound?"in":"out")">@(inbound?"+":"−")@x.Quantity.ToString("N3")</td><td class="num">@x.PreviousQuantity.ToString("N3")</td><td class="num">@x.ResultingQuantity.ToString("N3")</td><td class="num">@(x.UnitCost?.ToString("C2")??"—")</td><td>@x.Reason</td><td>@(x.DocumentNumber??"—")</td><td>@(x.ReferenceId??"—")</td><td>@(x.UserName??x.CreatedBy?.ToString()??"Sistema")</td></tr>}
+ </tbody></table></div>
+ <footer class="stock-grid-footer"><span>Página @Model.Movements.Page de @Model.TotalPages</span><nav>@if(f.Page>1){<a class="stock-button" asp-route-Page="@(f.Page-1)">Anterior</a>} @if(f.Page<Model.TotalPages){<a class="stock-button" asp-route-Page="@(f.Page+1)">Próxima</a>}</nav></footer></section>
+</section>

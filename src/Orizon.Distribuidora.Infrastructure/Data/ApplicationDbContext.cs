@@ -50,6 +50,10 @@ public sealed class ApplicationDbContext
 
     public DbSet<PriceHistory> PriceHistories => Set<PriceHistory>();
 
+    public DbSet<StockBalance> StockBalances => Set<StockBalance>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     public DbSet<ProductGridPreference> ProductGridPreferences => Set<ProductGridPreference>();
 
     public DbSet<ProductSavedFilter> ProductSavedFilters => Set<ProductSavedFilter>();
