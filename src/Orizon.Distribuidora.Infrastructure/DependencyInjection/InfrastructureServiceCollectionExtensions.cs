@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orizon.Distribuidora.Application.Interfaces;
 using Orizon.Distribuidora.Application.Products;
 using Orizon.Distribuidora.Application.Appearance;
+using Orizon.Distribuidora.Application.Stock;
 using Orizon.Distribuidora.Infrastructure.Data;
 using Orizon.Distribuidora.Infrastructure.Excel;
 using Orizon.Distribuidora.Infrastructure.Identity;
@@ -86,6 +87,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IMapeadorColunasService, MapeadorColunasService>();
         services.AddScoped<IModeloImportacaoService, ModeloImportacaoService>();
         services.AddScoped<IHistoricoImportacaoService, HistoricoImportacaoService>();
+        services.AddScoped<IStockService, StockService>();
 
         return services;
     }
