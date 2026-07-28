@@ -53,6 +53,10 @@ public sealed class ApplicationDbContext
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleItem> SaleItems => Set<SaleItem>();
 
     public DbSet<ProductGridPreference> ProductGridPreferences => Set<ProductGridPreference>();
 

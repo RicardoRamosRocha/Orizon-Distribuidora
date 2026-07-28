@@ -11,6 +11,8 @@
         || currentPath.StartsWith("/Admin/Roles", StringComparison.OrdinalIgnoreCase)
         || currentPath.StartsWith("/Admin/Audit", StringComparison.OrdinalIgnoreCase)
         || currentPath.StartsWith("/Admin/Preferences", StringComparison.OrdinalIgnoreCase);
+    var salesActive = currentPath.StartsWith("/Admin/Orcamentos", StringComparison.OrdinalIgnoreCase)
+        || currentPath.StartsWith("/Admin/Vendas", StringComparison.OrdinalIgnoreCase);
 }
 
 <div class="orizon-sidebar-header">
@@ -38,7 +40,7 @@
             <span class="orizon-sidebar-link-label">Estoque</span>
         </a>
 
-        @foreach (var item in new[] { ("shopping-cart", "Compras"), ("receipt", "Vendas"), ("currency-dollar", "Financeiro"), ("chart-bar", "Relatórios") })
+        @foreach (var item in new[] { ("shopping-cart", "Compras"), ("currency-dollar", "Financeiro"), ("chart-bar", "Relatórios") })
         {
             <span class="orizon-sidebar-link is-disabled" aria-disabled="true" data-tooltip="@item.Item2 — Em breve" tabindex="0">
                 <orizon-icon name="@item.Item1" size="20" class="orizon-sidebar-link-icon" />
@@ -49,6 +51,19 @@
     </div>
 
     <div class="orizon-sidebar-section orizon-sidebar-groups">
+        <div class="orizon-sidebar-group @(salesActive ? "is-expanded" : null)" data-sidebar-group="sales">
+            <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(salesActive ? "is-active" : null)"
+                    data-sidebar-group-toggle aria-expanded="@(salesActive.ToString().ToLowerInvariant())" aria-controls="sidebar-sales" data-tooltip="Vendas">
+                <orizon-icon name="receipt" size="20" class="orizon-sidebar-link-icon" />
+                <span class="orizon-sidebar-link-label">Vendas</span>
+                <orizon-icon name="chevron-down" size="16" class="orizon-sidebar-group-chevron" />
+            </button>
+            <div id="sidebar-sales" class="orizon-sidebar-submenu" data-sidebar-submenu>
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Orcamentos") ? "is-active" : null)" href="/Admin/Orcamentos">Orçamentos</a>
+                <a class="orizon-sidebar-sublink @(IsActive("/Admin/Vendas") ? "is-active" : null)" href="/Admin/Vendas">Vendas</a>
+            </div>
+        </div>
+
         <div class="orizon-sidebar-group @(registrationsActive ? "is-expanded" : null)" data-sidebar-group="registrations">
             <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(registrationsActive ? "is-active" : null)"
                     data-sidebar-group-toggle aria-expanded="@(registrationsActive.ToString().ToLowerInvariant())" aria-controls="sidebar-registrations" data-tooltip="Cadastros">
