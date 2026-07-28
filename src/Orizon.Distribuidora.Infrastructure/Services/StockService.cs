@@ -133,8 +133,32 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
         if (filter.CategoryId.HasValue) query = query.Where(x => db.Products.Any(p => p.Id == x.ProductId && p.CompanyId == companyId && p.CategoryId == filter.CategoryId));
         if (filter.OnlyBelowMinimum) query = query.Where(x => x.MinimumStock.HasValue && x.CurrentQuantity < x.MinimumStock);
         if (filter.OnlyActive) query = query.Where(x => db.Products.Any(p => p.Id == x.ProductId && p.CompanyId == companyId && p.IsActive && p.ControlsStock));
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var term = filter.Search.Trim();
+            query = query.Where(x => EF.Functions.ILike(x.ProductCode, $"%{term}%") || EF.Functions.ILike(x.ProductName, $"%{term}%"));
+        }
+        query = filter.Status switch
+        {
+            StockLevelStatus.Normal => query.Where(x => !x.IsOutOfStock && (!x.MinimumStock.HasValue || x.CurrentQuantity >= x.MinimumStock)),
+            StockLevelStatus.BelowMinimum => query.Where(x => x.MinimumStock.HasValue && x.CurrentQuantity < x.MinimumStock && x.CurrentQuantity != 0),
+            StockLevelStatus.OutOfStock => query.Where(x => x.CurrentQuantity == 0),
+            StockLevelStatus.NoMinimum => query.Where(x => !x.MinimumStock.HasValue),
+            _ => query
+        };
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(x => x.ProductName).ThenBy(x => x.WarehouseName)
+        query = (filter.SortBy.ToLowerInvariant(), filter.SortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase)) switch
+        {
+            ("quantity", true) => query.OrderByDescending(x => x.CurrentQuantity).ThenBy(x => x.ProductName),
+            ("quantity", false) => query.OrderBy(x => x.CurrentQuantity).ThenBy(x => x.ProductName),
+            ("warehouse", true) => query.OrderByDescending(x => x.WarehouseName).ThenBy(x => x.ProductName),
+            ("warehouse", false) => query.OrderBy(x => x.WarehouseName).ThenBy(x => x.ProductName),
+            ("code", true) => query.OrderByDescending(x => x.ProductCode).ThenBy(x => x.WarehouseName),
+            ("code", false) => query.OrderBy(x => x.ProductCode).ThenBy(x => x.WarehouseName),
+            (_, true) => query.OrderByDescending(x => x.ProductName).ThenBy(x => x.WarehouseName),
+            _ => query.OrderBy(x => x.ProductName).ThenBy(x => x.WarehouseName)
+        };
+        var items = await query
             .Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
         return new(items, page, size, total);
     }
@@ -155,15 +179,52 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
             var search = filter.DocumentOrReference.Trim();
             query = query.Where(x => x.DocumentNumber == search || x.ReferenceId == search);
         }
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var term = filter.Search.Trim();
+            query = query.Where(x => db.Products.Any(p => p.CompanyId == companyId && p.Id == x.ProductId &&
+                (EF.Functions.ILike(p.InternalCode, $"%{term}%") || EF.Functions.ILike(p.Name, $"%{term}%"))));
+        }
         var total = await query.CountAsync(cancellationToken);
         var items = await query.OrderByDescending(x => x.OccurredAt).ThenByDescending(x => x.CreatedAt)
             .Skip((page - 1) * size).Take(size)
             .Select(x => new StockMovementDto(x.Id, x.ProductId, x.WarehouseId, x.InternalLocationId,
                 x.Type, x.Direction, x.Quantity, x.PreviousQuantity, x.ResultingQuantity, x.UnitCost,
                 x.UnitCost * x.Quantity, x.Reason, x.Notes, x.ReferenceType, x.ReferenceId,
-                x.DocumentNumber, x.OccurredAt, x.CreatedAt, x.CreatedBy))
+                x.DocumentNumber, x.OccurredAt, x.CreatedAt, x.CreatedBy,
+                x.Product!.InternalCode, x.Product.Name, x.Warehouse!.Name,
+                x.InternalLocation != null ? x.InternalLocation.Name : null, null))
             .ToListAsync(cancellationToken);
         return new(items, page, size, total);
+    }
+
+    public async Task<StockDashboardSummary> GetDashboardSummaryAsync(Guid companyId, CancellationToken cancellationToken = default)
+    {
+        var controlled = await db.Products.AsNoTracking().CountAsync(x => x.CompanyId == companyId && x.IsActive && x.ControlsStock, cancellationToken);
+        var balances = db.StockBalances.AsNoTracking().Where(x => x.CompanyId == companyId && x.Product!.IsActive && x.Product.ControlsStock);
+        var aggregate = await balances.GroupBy(_ => 1).Select(g => new
+        {
+            Quantity = g.Sum(x => x.QuantityOnHand),
+            Below = g.Count(x => x.Product!.MinimumStock.HasValue && x.QuantityOnHand < x.Product.MinimumStock),
+            Empty = g.Count(x => x.QuantityOnHand == 0),
+            Warehouses = g.Select(x => x.WarehouseId).Distinct().Count()
+        }).SingleOrDefaultAsync(cancellationToken);
+        var since = DateTimeOffset.UtcNow.AddDays(-30);
+        var recent = await db.StockMovements.AsNoTracking().CountAsync(x => x.CompanyId == companyId && x.OccurredAt >= since, cancellationToken);
+        return new(controlled, aggregate?.Quantity ?? 0, aggregate?.Below ?? 0, aggregate?.Empty ?? 0, aggregate?.Warehouses ?? 0, recent);
+    }
+
+    public async Task<StockWorkspaceOptions> GetWorkspaceOptionsAsync(Guid companyId, CancellationToken cancellationToken = default)
+    {
+        var products = await db.Products.AsNoTracking().Where(x => x.CompanyId == companyId && x.IsActive && x.ControlsStock)
+            .OrderBy(x => x.Name).Select(x => new StockOptionDto(x.Id, x.InternalCode + " · " + x.Name, null)).ToListAsync(cancellationToken);
+        var warehouses = await db.Warehouses.AsNoTracking().Where(x => x.CompanyId == companyId && x.IsActive)
+            .OrderBy(x => x.Name).Select(x => new StockOptionDto(x.Id, x.Name, null)).ToListAsync(cancellationToken);
+        var categories = await db.Categories.AsNoTracking().Where(x => x.CompanyId == companyId && x.IsActive)
+            .OrderBy(x => x.Name).Select(x => new StockOptionDto(x.Id, x.Name, null)).ToListAsync(cancellationToken);
+        var locations = await db.InternalLocations.AsNoTracking().Where(x => x.CompanyId == companyId && x.IsActive)
+            .OrderBy(x => x.Name).Select(x => new StockOptionDto(x.Id, x.Name, x.WarehouseId)).ToListAsync(cancellationToken);
+        return new(products, warehouses, categories, locations);
     }
 
     private IQueryable<StockBalanceDto> BalanceQuery(Guid companyId) =>
@@ -175,5 +236,7 @@ public sealed class StockService(ApplicationDbContext db) : IStockService
             warehouse.Id, warehouse.Name, balance.QuantityOnHand, product.MinimumStock,
             product.MinimumStock.HasValue ? balance.QuantityOnHand - product.MinimumStock.Value : null,
             product.MinimumStock.HasValue && balance.QuantityOnHand < product.MinimumStock.Value,
-            balance.QuantityOnHand == 0, balance.LastMovementAt);
+            balance.QuantityOnHand == 0, balance.LastMovementAt,
+            product.Category != null ? product.Category.Name : null,
+            product.UnitOfMeasure != null ? product.UnitOfMeasure.Abbreviation : null);
 }

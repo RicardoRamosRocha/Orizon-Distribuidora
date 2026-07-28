@@ -1,0 +1,99 @@
+@model Orizon.Distribuidora.Web.Areas.Admin.Models.Stock.StockIndexViewModel
+@using Orizon.Distribuidora.Application.Stock
+@{
+    ViewData["Title"] = "Estoque";
+    ViewData["ApplicationName"] = "Distribuidora";
+    var f = Model.Filter;
+    string Status(StockBalanceDto x) => x.IsOutOfStock ? "Sem estoque" : x.IsBelowMinimum ? "Abaixo do mínimo" : !x.MinimumStock.HasValue ? "Sem mínimo definido" : "Normal";
+    string Tone(StockBalanceDto x) => x.IsOutOfStock ? "empty" : x.IsBelowMinimum ? "critical" : !x.MinimumStock.HasValue ? "neutral" : "normal";
+}
+@section Styles { <link rel="stylesheet" href="~/css/stock-premium.css" asp-append-version="true" /> }
+
+<section class="stock-workspace" data-stock-workspace>
+    <header class="stock-header">
+        <div><h1>Estoque</h1><p>Controle de saldos e movimentações por depósito.</p></div>
+        <div class="stock-actions">
+            <button class="stock-button primary" type="button" data-open-operation="entry">Nova entrada</button>
+            <button class="stock-button" type="button" data-open-operation="issue">Registrar saída</button>
+            <button class="stock-button" type="button" data-open-operation="adjustment">Ajustar estoque</button>
+            <a class="stock-button" asp-action="Movements">Histórico</a>
+        </div>
+    </header>
+    @if (TempData["Success"] is string success) { <div class="stock-alert success" role="status">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="stock-alert error" role="alert">@error</div> }
+
+    <section class="stock-kpis" aria-label="Resumo de estoque">
+        <div><span>Produtos controlados</span><strong>@Model.Summary.ControlledProducts</strong></div>
+        <div><span>Saldo total</span><strong>@Model.Summary.TotalQuantity.ToString("N3")</strong></div>
+        <div class="critical"><span>Abaixo do mínimo</span><strong>@Model.Summary.BelowMinimum</strong></div>
+        <div class="danger"><span>Sem estoque</span><strong>@Model.Summary.OutOfStock</strong></div>
+        <div><span>Movimentos em 30 dias</span><strong>@Model.Summary.RecentMovements</strong></div>
+    </section>
+
+    <form method="get" class="stock-filters" aria-label="Filtros de estoque">
+        <label class="stock-search"><span class="sr-only">Pesquisar</span><input type="search" name="Search" value="@f.Search" placeholder="Código ou descrição" /></label>
+        <select name="WarehouseId" aria-label="Depósito"><option value="">Todos os depósitos</option>@foreach(var x in Model.Options.Warehouses){<option value="@x.Id" selected="@(f.WarehouseId == x.Id)">@x.Label</option>}</select>
+        <select name="CategoryId" aria-label="Categoria"><option value="">Todas as categorias</option>@foreach(var x in Model.Options.Categories){<option value="@x.Id" selected="@(f.CategoryId == x.Id)">@x.Label</option>}</select>
+        <select name="Status" asp-for="Filter.Status" aria-label="Situação">
+            <option value="@StockLevelStatus.All">Todas as situações</option><option value="@StockLevelStatus.Normal">Normal</option>
+            <option value="@StockLevelStatus.BelowMinimum">Abaixo do mínimo</option><option value="@StockLevelStatus.OutOfStock">Sem estoque</option>
+            <option value="@StockLevelStatus.NoMinimum">Sem mínimo</option>
+        </select>
+        <select name="SortBy" asp-for="Filter.SortBy" aria-label="Ordenação"><option value="product">Produto</option><option value="code">Código</option><option value="warehouse">Depósito</option><option value="quantity">Saldo</option></select>
+        <select name="PageSize" asp-for="Filter.PageSize" aria-label="Itens por página"><option>10</option><option>25</option><option>50</option><option>100</option></select>
+        <label class="stock-check"><input type="checkbox" name="OnlyActive" value="true" checked="@f.OnlyActive" /> Somente ativos</label>
+        <button class="stock-button primary" type="submit">Filtrar</button><a class="stock-button" asp-action="Index">Limpar</a>
+    </form>
+
+    <section class="stock-grid-card" aria-labelledby="stock-grid-title">
+        <div class="stock-grid-heading"><h2 id="stock-grid-title">Saldos por depósito</h2><span>@Model.Balances.TotalCount registro(s)</span></div>
+        <div class="stock-grid-scroll" tabindex="0">
+            <table class="stock-grid">
+                <thead><tr><th><span class="sr-only">Selecionar</span></th><th>Código</th><th>Produto</th><th>Categoria</th><th>Depósito</th><th>Un.</th><th class="num">Saldo atual</th><th class="num">Mínimo</th><th class="num">Diferença</th><th>Situação</th><th>Última movimentação</th><th>Ações</th></tr></thead>
+                <tbody>
+                @if (Model.Balances.Items.Count == 0) {
+                    <tr><td colspan="12" class="stock-empty"><strong>Nenhum saldo encontrado</strong><span>Ajuste os filtros ou registre uma entrada para um produto controlado.</span></td></tr>
+                } else foreach (var x in Model.Balances.Items) {
+                    <tr data-stock-row data-product="@x.ProductId" data-warehouse="@x.WarehouseId" data-balance="@x.CurrentQuantity.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                        <td><input type="checkbox" aria-label="Selecionar @x.ProductName" /></td><td><code>@x.ProductCode</code></td><td><strong>@x.ProductName</strong></td>
+                        <td>@(x.CategoryName ?? "Sem categoria")</td><td>@x.WarehouseName</td><td>@(x.UnitName ?? "—")</td>
+                        <td class="num stock-quantity">@x.CurrentQuantity.ToString("N3")</td><td class="num">@(x.MinimumStock?.ToString("N3") ?? "—")</td>
+                        <td class="num">@(x.DifferenceToMinimum?.ToString("+0.###;-0.###;0") ?? "—")</td>
+                        <td><span class="stock-status @Tone(x)">@Status(x)</span></td>
+                        <td>@(x.LastMovementAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Sem movimento")</td>
+                        <td><button class="stock-link" type="button" data-row-operation="entry">Entrada</button><button class="stock-link" type="button" data-row-operation="issue">Saída</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <footer class="stock-grid-footer"><span>Página @Model.Balances.Page de @Model.TotalPages · @Model.Summary.WarehousesWithBalance depósito(s) com saldo</span>
+            <nav aria-label="Paginação">
+                @if(f.Page > 1){<a class="stock-button" asp-all-route-data="@(new Dictionary<string,string?> {["Search"]=f.Search,["WarehouseId"]=f.WarehouseId?.ToString(),["CategoryId"]=f.CategoryId?.ToString(),["Status"]=f.Status.ToString(),["OnlyActive"]=f.OnlyActive.ToString(),["SortBy"]=f.SortBy,["PageSize"]=f.PageSize.ToString(),["Page"]=(f.Page-1).ToString()})">Anterior</a>}
+                @if(f.Page < Model.TotalPages){<a class="stock-button" asp-all-route-data="@(new Dictionary<string,string?> {["Search"]=f.Search,["WarehouseId"]=f.WarehouseId?.ToString(),["CategoryId"]=f.CategoryId?.ToString(),["Status"]=f.Status.ToString(),["OnlyActive"]=f.OnlyActive.ToString(),["SortBy"]=f.SortBy,["PageSize"]=f.PageSize.ToString(),["Page"]=(f.Page+1).ToString()})">Próxima</a>}
+            </nav>
+        </footer>
+    </section>
+
+    <dialog class="stock-dialog" data-operation-dialog aria-labelledby="stock-dialog-title">
+        <form method="post" data-operation-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ReturnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+            <header><div><h2 id="stock-dialog-title" data-dialog-title>Nova entrada</h2><p data-dialog-help>Registre uma movimentação rastreável.</p></div><button type="button" class="stock-close" data-close-dialog aria-label="Fechar">×</button></header>
+            <div class="stock-current" data-current-balance hidden>Saldo atual: <strong>0</strong></div>
+            <div class="stock-form-grid">
+                <label>Produto<select name="ProductId" required><option value="">Selecione</option>@foreach(var x in Model.Options.Products){<option value="@x.Id">@x.Label</option>}</select></label>
+                <label>Depósito<select name="WarehouseId" required><option value="">Selecione</option>@foreach(var x in Model.Options.Warehouses){<option value="@x.Id">@x.Label</option>}</select></label>
+                <label>Localização (opcional)<select name="InternalLocationId"><option value="">Sem localização</option>@foreach(var x in Model.Options.Locations){<option value="@x.Id" data-warehouse="@x.ParentId">@x.Label</option>}</select></label>
+                <label>Quantidade<input name="Quantity" type="number" min="0.0001" step="0.0001" required /></label>
+                <label class="entry-only">Custo unitário (opcional)<input name="UnitCost" type="number" min="0" step="0.01" /></label>
+                <label>Motivo<input name="Reason" maxlength="200" required /></label>
+                <label>Documento / referência<input name="DocumentNumber" maxlength="100" /></label>
+                <label class="wide">Observações<textarea name="Notes" maxlength="1000" rows="3"></textarea></label>
+            </div>
+            <div class="adjustment-choice" data-adjustment-choice hidden><label><input type="radio" name="AdjustmentDirection" value="positive" checked /> Positivo</label><label><input type="radio" name="AdjustmentDirection" value="negative" /> Negativo</label></div>
+            <footer><button type="button" class="stock-button" data-close-dialog>Cancelar</button><button type="submit" class="stock-button primary" data-submit-operation>Confirmar entrada</button></footer>
+        </form>
+    </dialog>
+</section>
+@section Scripts { <script src="~/js/stock-premium.js" asp-append-version="true"></script> }

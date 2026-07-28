@@ -36,7 +36,11 @@ public sealed record StockBalanceFilter(
     bool OnlyBelowMinimum = false,
     bool OnlyActive = true,
     int Page = 1,
-    int PageSize = 25);
+    int PageSize = 25,
+    string? Search = null,
+    StockLevelStatus Status = StockLevelStatus.All,
+    string SortBy = "product",
+    string SortDirection = "asc");
 
 public sealed record StockMovementFilter(
     Guid? ProductId = null,
@@ -47,13 +51,15 @@ public sealed record StockMovementFilter(
     DateTimeOffset? To = null,
     string? DocumentOrReference = null,
     int Page = 1,
-    int PageSize = 25);
+    int PageSize = 25,
+    string? Search = null);
 
 public sealed record StockBalanceDto(
     Guid Id, Guid ProductId, string ProductCode, string ProductName,
     Guid WarehouseId, string WarehouseName, decimal CurrentQuantity,
     decimal? MinimumStock, decimal? DifferenceToMinimum,
-    bool IsBelowMinimum, bool IsOutOfStock, DateTimeOffset? LastMovementAt);
+    bool IsBelowMinimum, bool IsOutOfStock, DateTimeOffset? LastMovementAt,
+    string? CategoryName = null, string? UnitName = null);
 
 public sealed record StockMovementDto(
     Guid Id, Guid ProductId, Guid WarehouseId, Guid? InternalLocationId,
@@ -61,7 +67,23 @@ public sealed record StockMovementDto(
     decimal PreviousQuantity, decimal ResultingQuantity, decimal? UnitCost,
     decimal? TotalCost, string Reason, string? Notes, string? ReferenceType,
     string? ReferenceId, string? DocumentNumber, DateTimeOffset OccurredAt,
-    DateTimeOffset CreatedAt, Guid? CreatedBy);
+    DateTimeOffset CreatedAt, Guid? CreatedBy, string? ProductCode = null,
+    string? ProductName = null, string? WarehouseName = null,
+    string? InternalLocationName = null, string? UserName = null);
+
+public enum StockLevelStatus { All, Normal, BelowMinimum, OutOfStock, NoMinimum }
+
+public sealed record StockDashboardSummary(
+    int ControlledProducts, decimal TotalQuantity, int BelowMinimum,
+    int OutOfStock, int WarehousesWithBalance, int RecentMovements);
+
+public sealed record StockOptionDto(Guid Id, string Label, Guid? ParentId = null);
+
+public sealed record StockWorkspaceOptions(
+    IReadOnlyList<StockOptionDto> Products,
+    IReadOnlyList<StockOptionDto> Warehouses,
+    IReadOnlyList<StockOptionDto> Categories,
+    IReadOnlyList<StockOptionDto> Locations);
 
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
@@ -88,4 +110,6 @@ public interface IStockService
     Task<StockBalanceDto?> GetStockBalanceAsync(Guid companyId, Guid productId, Guid warehouseId, CancellationToken cancellationToken = default);
     Task<PagedResult<StockBalanceDto>> ListStockBalancesAsync(Guid companyId, StockBalanceFilter filter, CancellationToken cancellationToken = default);
     Task<PagedResult<StockMovementDto>> ListStockMovementsAsync(Guid companyId, StockMovementFilter filter, CancellationToken cancellationToken = default);
+    Task<StockDashboardSummary> GetDashboardSummaryAsync(Guid companyId, CancellationToken cancellationToken = default);
+    Task<StockWorkspaceOptions> GetWorkspaceOptionsAsync(Guid companyId, CancellationToken cancellationToken = default);
 }
