@@ -1,0 +1,74 @@
+name: Apply database migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Digite APLICAR para confirmar as migrations no banco de homologação'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrations-homologacao
+  cancel-in-progress: false
+
+jobs:
+  validate-confirmation:
+    name: Validate confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$CONFIRMATION" != "APLICAR" ]; then
+            echo "Confirmação inválida. Execute novamente e digite APLICAR."
+            exit 1
+          fi
+
+  apply-migrations:
+    name: Apply migrations to homologacao
+    needs: validate-confirmation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: homologacao
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: ${{ secrets.NEON_CONNECTION_STRING }}
+
+    steps:
+      - name: Validate database secret
+        shell: bash
+        run: |
+          if [ -z "$ConnectionStrings__DefaultConnection" ]; then
+            echo "O secret NEON_CONNECTION_STRING não está configurado no ambiente homologacao."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Restore dependencies
+        run: dotnet restore Orizon.Distribuidora.sln
+
+      - name: Apply Entity Framework migrations
+        run: >-
+          dotnet ef database update
+          --project src/Orizon.Distribuidora.Infrastructure
+          --startup-project src/Orizon.Distribuidora.Web
+          --configuration Release
