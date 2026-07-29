@@ -1,9 +1,53 @@
 @model Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial.SaleDetailsViewModel
 @using Orizon.Distribuidora.Domain.Enums
-@{ViewData["Title"]=$"Venda VEN-{Model.Sale.Number:000000}";var s=Model.Sale;}
+@using Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial
+@{ ViewData["Title"] = $"Venda VEN-{Model.Sale.Number:000000}"; var s = Model.Sale; }
 @section Styles { <link rel="stylesheet" href="~/css/commercial-premium.css" asp-append-version="true" /> }
-<section class="commercial-workspace"><header class="commercial-header"><div><h1>VEN-@s.Number.ToString("000000")</h1><p>@s.CustomerName · @s.Status</p></div><a class="commercial-button" asp-action="Receipt" asp-route-id="@s.Id" target="_blank">Comprovante</a></header>
-@if(TempData["Success"] is string ok){<div class="commercial-alert success">@ok</div>}@if(TempData["Error"] is string err){<div class="commercial-alert error">@err</div>}<div class="non-fiscal-banner">DOCUMENTO NÃO FISCAL — NÃO SUBSTITUI NOTA FISCAL</div>
-<div class="commercial-kpis"><div><span>Comercial</span><strong>@s.Status</strong></div><div><span>Pagamento</span><strong>@s.PaymentStatus</strong></div><div><span>Fiscal</span><strong>@s.FiscalStatus</strong><small>Módulo não habilitado</small></div><div><span>Total</span><strong>@s.Total.ToString("C")</strong></div></div>
-<div class="commercial-card"><div class="commercial-table-scroll"><table><thead><tr><th>Código</th><th>Descrição</th><th>Tipo</th><th class="num">Qtd.</th><th class="num">Preço</th><th class="num">Total</th></tr></thead><tbody>@foreach(var x in s.Items){<tr><td>@x.ProductCode</td><td>@x.Description</td><td>@(x.ControlsStock&&x.IsOwnProduct?"Próprio/controlado":"Intermediado/sem baixa")</td><td class="num">@x.Quantity.ToString("N3")</td><td class="num">@x.UnitPrice.ToString("C")</td><td class="num">@x.Total.ToString("C")</td></tr>}</tbody></table></div></div>
-<div class="commercial-actions action-bar">@if(s.Status==SaleStatus.Draft){<form asp-action="Confirm" asp-route-id="@s.Id" method="post">@Html.AntiForgeryToken()<button class="commercial-button primary">Confirmar e baixar estoque</button></form><form asp-action="Cancel" asp-route-id="@s.Id" method="post">@Html.AntiForgeryToken()<button class="commercial-button danger">Cancelar venda</button></form>}@if(s.QuoteId.HasValue){<a class="commercial-button" asp-controller="Quotes" asp-action="Details" asp-route-id="@s.QuoteId">Ver orçamento de origem</a>}</div></section>
+
+<section class="commercial-workspace">
+    <header class="commercial-header detail-header">
+        <div>
+            <nav class="commercial-breadcrumb" aria-label="Breadcrumb"><a asp-action="Index">Vendas</a><span aria-hidden="true">/</span><span>VEN-@s.Number.ToString("000000")</span></nav>
+            <div class="document-title"><h1>VEN-@s.Number.ToString("000000")</h1><span class="commercial-status @CommercialPresentation.Tone(s.Status)">@CommercialPresentation.Label(s.Status)</span></div>
+            <p>@s.CustomerName · Emitida em @s.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy")</p>
+        </div>
+        <div class="commercial-actions" aria-label="Ações da venda">
+            @if (s.Status == SaleStatus.Draft) { <form asp-action="Confirm" asp-route-id="@s.Id" method="post">@Html.AntiForgeryToken()<button class="commercial-button primary">Confirmar e baixar estoque</button></form> }
+            <a class="commercial-button" asp-action="Receipt" asp-route-id="@s.Id" target="_blank">Imprimir comprovante</a>
+        </div>
+    </header>
+    @if (TempData["Success"] is string ok) { <div class="commercial-alert success" role="status">@ok</div> }
+    @if (TempData["Error"] is string err) { <div class="commercial-alert error" role="alert">@err</div> }
+    <div class="non-fiscal-banner" role="note">DOCUMENTO NÃO FISCAL — NÃO SUBSTITUI NOTA FISCAL</div>
+
+    <div class="commercial-state-strip" aria-label="Situações da venda">
+        <div><span>Comercial</span><strong class="commercial-status @CommercialPresentation.Tone(s.Status)">@CommercialPresentation.Label(s.Status)</strong></div>
+        <div><span>Pagamento</span><strong class="commercial-status @CommercialPresentation.Tone(s.PaymentStatus)">@CommercialPresentation.Label(s.PaymentStatus)</strong></div>
+        <div><span>Fiscal</span><strong class="commercial-status @CommercialPresentation.Tone(s.FiscalStatus)">@CommercialPresentation.Label(s.FiscalStatus)</strong><small>Módulo fiscal não habilitado</small></div>
+    </div>
+
+    <div class="detail-grid">
+        <section class="commercial-card detail-main" aria-labelledby="sale-items-title">
+            <header class="commercial-card-head"><div><h2 id="sale-items-title">Itens da venda</h2><span>@s.Items.Count item(ns)</span></div></header>
+            <div class="commercial-table-scroll" tabindex="0" aria-label="Itens da venda">
+                <table><thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th class="num">Qtd.</th><th class="num">Preço</th><th class="num">Desconto</th><th class="num">Total</th></tr></thead><tbody>
+                @foreach (var x in s.Items) { <tr><td>@x.ProductCode</td><td class="description-cell">@x.Description<small class="cell-note">@(x.ControlsStock && x.IsOwnProduct ? "Estoque controlado" : "Sem baixa de estoque")</small></td><td>@x.Unit</td><td class="num">@x.Quantity.ToString("N3")</td><td class="num">@CommercialPresentation.Money(x.UnitPrice)</td><td class="num">@CommercialPresentation.Money(x.Discount)</td><td class="num total-cell">@CommercialPresentation.Money(x.Total)</td></tr> }
+                </tbody></table>
+            </div>
+        </section>
+        <aside class="commercial-card detail-summary" aria-labelledby="sale-summary-title">
+            <h2 id="sale-summary-title">Resumo financeiro</h2>
+            <dl><dt>Subtotal</dt><dd>@CommercialPresentation.Money(s.Subtotal)</dd><dt>Desconto</dt><dd>@CommercialPresentation.Money(s.Discount)</dd><dt>Frete</dt><dd>@CommercialPresentation.Money(s.Freight)</dd>@if (s.AdditionalCharges != 0) { <dt>Acréscimos</dt><dd>@CommercialPresentation.Money(s.AdditionalCharges)</dd> }</dl>
+            <div class="detail-total"><span>Total</span><strong>@CommercialPresentation.Money(s.Total)</strong></div>
+            <dl class="detail-meta"><dt>Emissão</dt><dd>@s.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>@if (s.ConfirmedAt.HasValue) { <dt>Confirmação</dt><dd>@s.ConfirmedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd> }@if (!string.IsNullOrWhiteSpace(s.CustomerDocument)) { <dt>Documento</dt><dd>@s.CustomerDocument</dd> }</dl>
+        </aside>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(s.DeliveryAddress) || !string.IsNullOrWhiteSpace(s.Notes))
+    {
+        <section class="commercial-card detail-notes" aria-labelledby="sale-notes-title"><h2 id="sale-notes-title">Informações complementares</h2>@if (!string.IsNullOrWhiteSpace(s.DeliveryAddress)) { <div><strong>Entrega</strong><p>@s.DeliveryAddress</p></div> }@if (!string.IsNullOrWhiteSpace(s.Notes)) { <div><strong>Observações</strong><p>@s.Notes</p></div> }</section>
+    }
+    <footer class="commercial-actions action-bar" aria-label="Ações complementares da venda">
+        @if (s.QuoteId.HasValue) { <a class="commercial-button" asp-controller="Quotes" asp-action="Details" asp-route-id="@s.QuoteId">Ver orçamento de origem</a> }
+        @if (s.Status == SaleStatus.Draft) { <form asp-action="Cancel" asp-route-id="@s.Id" method="post">@Html.AntiForgeryToken()<button class="commercial-button danger">Cancelar venda</button></form> }
+    </footer>
+</section>

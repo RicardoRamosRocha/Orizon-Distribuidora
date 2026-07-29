@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Orizon.Distribuidora.Application.Commercial;
 using Orizon.Distribuidora.Domain.Enums;
@@ -47,3 +48,87 @@ public sealed class QuoteItemFormViewModel
 }
 public sealed record QuoteDetailsViewModel(QuoteDetail Quote, CompanyDocumentHeader? Company);
 public sealed record SaleDetailsViewModel(SaleDetail Sale, CompanyDocumentHeader? Company);
+
+public static class CommercialPresentation
+{
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    public static string Money(decimal value) => value.ToString("C", PtBr);
+
+    public static string Label(QuoteStatus status) => status switch
+    {
+        QuoteStatus.Draft => "Rascunho",
+        QuoteStatus.Sent => "Enviado",
+        QuoteStatus.Approved => "Aprovado",
+        QuoteStatus.Rejected => "Recusado",
+        QuoteStatus.Expired => "Vencido",
+        QuoteStatus.Converted => "Convertido",
+        QuoteStatus.Cancelled => "Cancelado",
+        _ => "Não informado"
+    };
+
+    public static string Label(SaleStatus status) => status switch
+    {
+        SaleStatus.Draft => "Rascunho",
+        SaleStatus.Confirmed => "Confirmada",
+        SaleStatus.AwaitingPayment => "Aguardando pagamento",
+        SaleStatus.Paid => "Paga",
+        SaleStatus.PartiallyPaid => "Parcialmente paga",
+        SaleStatus.InFulfillment => "Em atendimento",
+        SaleStatus.Completed => "Concluída",
+        SaleStatus.Cancelled => "Cancelada",
+        _ => "Não informado"
+    };
+
+    public static string Label(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Pending => "Pendente",
+        PaymentStatus.PartiallyPaid => "Parcial",
+        PaymentStatus.Paid => "Pago",
+        PaymentStatus.Cancelled => "Cancelado",
+        _ => "Não informado"
+    };
+
+    public static string Label(FiscalDocumentStatus status) => status switch
+    {
+        FiscalDocumentStatus.NotRequested => "Não solicitado",
+        FiscalDocumentStatus.Pending => "Pendente",
+        FiscalDocumentStatus.Processing => "Em processamento",
+        FiscalDocumentStatus.Authorized => "Autorizado",
+        FiscalDocumentStatus.Rejected => "Rejeitado",
+        FiscalDocumentStatus.Cancelled => "Cancelado",
+        _ => "Não informado"
+    };
+
+    public static string Tone(QuoteStatus status) => status switch
+    {
+        QuoteStatus.Approved or QuoteStatus.Converted => "success",
+        QuoteStatus.Sent => "info",
+        QuoteStatus.Expired or QuoteStatus.Rejected or QuoteStatus.Cancelled => "danger",
+        _ => "neutral"
+    };
+
+    public static string Tone(SaleStatus status) => status switch
+    {
+        SaleStatus.Confirmed or SaleStatus.Paid or SaleStatus.Completed => "success",
+        SaleStatus.AwaitingPayment or SaleStatus.PartiallyPaid or SaleStatus.InFulfillment => "warning",
+        SaleStatus.Cancelled => "danger",
+        _ => "neutral"
+    };
+
+    public static string Tone(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Paid => "success",
+        PaymentStatus.Pending or PaymentStatus.PartiallyPaid => "warning",
+        PaymentStatus.Cancelled => "danger",
+        _ => "neutral"
+    };
+
+    public static string Tone(FiscalDocumentStatus status) => status switch
+    {
+        FiscalDocumentStatus.Authorized => "success",
+        FiscalDocumentStatus.Pending or FiscalDocumentStatus.Processing => "warning",
+        FiscalDocumentStatus.Rejected or FiscalDocumentStatus.Cancelled => "danger",
+        _ => "neutral"
+    };
+}

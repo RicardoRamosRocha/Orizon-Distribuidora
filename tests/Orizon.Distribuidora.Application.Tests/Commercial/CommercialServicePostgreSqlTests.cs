@@ -160,6 +160,67 @@ public sealed class CommercialServicePostgreSqlTests
             .Select(x => x.QuantityOnHand).SingleAsync());
     }
 
+    [Fact]
+    public async Task Quote_creation_persists_once_and_leaves_no_partial_records_on_failure()
+    {
+        await using var db = CreateContext();
+        var fixture = await db.Products.AsNoTracking()
+            .Where(x => x.IsActive && x.ControlsStock)
+            .Select(x => new
+            {
+                x.CompanyId,
+                ProductId = x.Id,
+                CustomerId = db.CommercialPartners
+                    .Where(customer => customer.CompanyId == x.CompanyId && customer.IsActive)
+                    .Select(customer => customer.Id)
+                    .First()
+            })
+            .FirstAsync();
+        var warehouseId = await db.Warehouses.AsNoTracking()
+            .Where(x => x.CompanyId == fixture.CompanyId && x.IsActive)
+            .Select(x => x.Id)
+            .FirstAsync();
+        var service = CreateService(db);
+        var marker = $"criação-atômica-{Guid.NewGuid()}";
+        var request = Request(fixture.CustomerId, fixture.ProductId, warehouseId,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)), 2, 10, marker);
+
+        var created = await service.CreateQuoteAsync(fixture.CompanyId, null, request, false);
+
+        Assert.True(created.Succeeded, created.ErrorMessage);
+        Assert.Equal(1, await db.Quotes.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId && x.Notes == marker));
+        Assert.Equal(1, await db.QuoteItems.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId &&
+                x.QuoteId == created.DocumentId!.Value));
+
+        var quoteCountBeforeFailure = await db.Quotes.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId);
+        var itemCountBeforeFailure = await db.QuoteItems.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId);
+        var failed = await service.CreateQuoteAsync(fixture.CompanyId, null,
+            request with
+            {
+                Notes = $"{marker}-falha",
+                Items =
+                [
+                    new CommercialItemInput(fixture.ProductId, 1, 10, 0, Guid.NewGuid())
+                ]
+            }, true);
+
+        Assert.False(failed.Succeeded);
+        Assert.Equal("persistence_error", failed.ErrorCode);
+        Assert.Equal(
+            "Não foi possível salvar o orçamento. Tente novamente; se o problema continuar, contate o suporte.",
+            failed.ErrorMessage);
+        Assert.Equal(quoteCountBeforeFailure, await db.Quotes.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId));
+        Assert.Equal(itemCountBeforeFailure, await db.QuoteItems.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId));
+        Assert.Equal(0, await db.Quotes.AsNoTracking()
+            .CountAsync(x => x.CompanyId == fixture.CompanyId && x.Notes == $"{marker}-falha"));
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var connection = Environment.GetEnvironmentVariable("ORIZON_TEST_POSTGRES")

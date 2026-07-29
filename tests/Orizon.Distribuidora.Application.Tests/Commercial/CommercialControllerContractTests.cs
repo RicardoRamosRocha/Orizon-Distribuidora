@@ -41,6 +41,49 @@ public sealed class CommercialControllerContractTests
         Assert.Null(typeof(QuoteFormViewModel).GetProperty("CompanyId"));
 
     [Theory]
+    [InlineData(typeof(QuotesController), "Admin/Orcamentos")]
+    [InlineData(typeof(SalesController), "Admin/Vendas")]
+    public void Commercial_modules_have_independent_routes(Type controller, string expectedRoute)
+    {
+        var route = Assert.Single(controller.GetCustomAttributes(typeof(RouteAttribute), true)
+            .Cast<RouteAttribute>());
+        Assert.Equal(expectedRoute, route.Template);
+    }
+
+    [Fact]
+    public void Sidebar_exposes_quotes_and_sales_as_independent_first_level_links()
+    {
+        var sidebar = ReadRepositoryFile("src/Orizon.Distribuidora.Web/Views/Shared/_Sidebar.cshtml");
+
+        Assert.Contains("href=\"/Admin/Orcamentos\"", sidebar);
+        Assert.Contains("href=\"/Admin/Vendas\"", sidebar);
+        Assert.DoesNotContain("sidebar-sales", sidebar);
+        Assert.DoesNotContain("data-sidebar-group=\"sales\"", sidebar);
+    }
+
+    [Theory]
+    [InlineData("src/Orizon.Distribuidora.Web/Areas/Admin/Views/Quotes/Print.cshtml")]
+    [InlineData("src/Orizon.Distribuidora.Web/Areas/Admin/Views/Sales/Receipt.cshtml")]
+    public void Commercial_documents_identify_themselves_as_non_fiscal(string path)
+    {
+        var view = ReadRepositoryFile(path);
+        Assert.Contains("DOCUMENTO NÃO FISCAL", view);
+        Assert.Contains("CustomerName", view);
+        Assert.Contains("document-items", view);
+        Assert.Contains("financial-summary", view);
+    }
+
+    [Theory]
+    [InlineData("src/Orizon.Distribuidora.Web/Areas/Admin/Views/Quotes/Print.cshtml")]
+    [InlineData("src/Orizon.Distribuidora.Web/Areas/Admin/Views/Sales/Receipt.cshtml")]
+    public void Commercial_documents_render_notes_only_when_present(string path)
+    {
+        var view = ReadRepositoryFile(path);
+        Assert.Contains("!string.IsNullOrWhiteSpace", view);
+        Assert.Contains("Observações", view);
+    }
+
+    [Theory]
     [InlineData("1", 1)]
     [InlineData("2", 2)]
     [InlineData("1,5", 1.5)]
@@ -80,5 +123,14 @@ public sealed class CommercialControllerContractTests
 
         Assert.False(context.Result.IsModelSet);
         Assert.False(context.ModelState.IsValid);
+    }
+
+    private static string ReadRepositoryFile(string relativePath)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Orizon.Distribuidora.sln")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        return File.ReadAllText(Path.Combine(directory.FullName, relativePath));
     }
 }

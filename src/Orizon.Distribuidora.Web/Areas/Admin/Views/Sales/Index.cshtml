@@ -1,9 +1,81 @@
 @model Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial.SaleIndexViewModel
 @using Orizon.Distribuidora.Domain.Enums
-@{ ViewData["Title"]="Vendas"; var f=Model.Filter; }
+@using Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial
+@{
+    ViewData["Title"] = "Vendas";
+    var f = Model.Filter;
+    var hasFilters = !string.IsNullOrWhiteSpace(f.Search) || f.CustomerId.HasValue || f.Status.HasValue || f.PaymentStatus.HasValue || f.FiscalStatus.HasValue || f.From.HasValue || f.To.HasValue;
+    var firstRecord = Model.Page.TotalCount == 0 ? 0 : ((Model.Page.Page - 1) * Model.Page.PageSize) + 1;
+    var lastRecord = Math.Min(Model.Page.Page * Model.Page.PageSize, Model.Page.TotalCount);
+}
 @section Styles { <link rel="stylesheet" href="~/css/commercial-premium.css" asp-append-version="true" /> }
-<section class="commercial-workspace"><header class="commercial-header"><div><h1>Vendas</h1><p>Acompanhamento comercial, pagamento e estado fiscal independente.</p></div></header>
-@if(TempData["Success"] is string ok){<div class="commercial-alert success">@ok</div>} @if(TempData["Error"] is string err){<div class="commercial-alert error">@err</div>}
-<div class="commercial-kpis"><div><span>Vendas</span><strong>@Model.Summary.Total</strong></div><div><span>Confirmadas</span><strong>@Model.Summary.Confirmed</strong></div><div><span>Aguardando pagamento</span><strong>@Model.Summary.AwaitingPayment</strong></div><div><span>Concluídas</span><strong>@Model.Summary.Completed</strong></div><div><span>Canceladas</span><strong>@Model.Summary.Cancelled</strong></div><div><span>Valor ativo</span><strong>@Model.Summary.TotalValue.ToString("C")</strong></div></div>
-<form method="get" class="commercial-filters"><input type="search" name="Search" value="@f.Search" placeholder="Número ou cliente"/><select name="CustomerId"><option value="">Todos os clientes</option>@foreach(var x in Model.Options.Customers){<option value="@x.Id" selected="@(f.CustomerId==x.Id)">@x.Label</option>}</select><select name="Status"><option value="">Estado comercial</option>@foreach(var x in Enum.GetValues<SaleStatus>()){<option value="@x" selected="@(f.Status==x)">@x</option>}</select><select name="PaymentStatus"><option value="">Pagamento</option>@foreach(var x in Enum.GetValues<PaymentStatus>()){<option value="@x" selected="@(f.PaymentStatus==x)">@x</option>}</select><select name="FiscalStatus"><option value="">Fiscal</option>@foreach(var x in Enum.GetValues<FiscalDocumentStatus>()){<option value="@x" selected="@(f.FiscalStatus==x)">@x</option>}</select><button class="commercial-button primary">Filtrar</button><a class="commercial-button" asp-action="Index">Limpar</a></form>
-<div class="commercial-card"><div class="commercial-card-head"><h2>Vendas</h2><span>@Model.Page.TotalCount registro(s)</span></div><div class="commercial-table-scroll" tabindex="0"><table><thead><tr><th>Número</th><th>Cliente</th><th>Origem</th><th>Data</th><th class="num">Total</th><th>Pagamento</th><th>Comercial</th><th>Fiscal</th><th>Ações</th></tr></thead><tbody>@if(Model.Page.Items.Count==0){<tr><td colspan="9" class="commercial-empty"><strong>Nenhuma venda encontrada</strong><span>Converta um orçamento aprovado para iniciar.</span></td></tr>}else foreach(var x in Model.Page.Items){<tr><td><strong>VEN-@x.Number.ToString("000000")</strong></td><td>@x.CustomerName</td><td>@(x.QuoteId.HasValue?"Orçamento":"Direta")</td><td>@x.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy")</td><td class="num">@x.Total.ToString("C")</td><td>@x.PaymentStatus</td><td><span class="commercial-status">@x.Status</span></td><td>@x.FiscalStatus</td><td><a asp-action="Details" asp-route-id="@x.Id">Abrir</a></td></tr>}</tbody></table></div><footer class="commercial-pagination"><span>Página @Model.Page.Page de @Model.TotalPages</span></footer></div></section>
+
+<section class="commercial-workspace">
+    <header class="commercial-header">
+        <div>
+            <nav class="commercial-breadcrumb" aria-label="Breadcrumb"><a href="/Admin/Dashboard">Dashboard</a><span aria-hidden="true">/</span><span>Vendas</span></nav>
+            <h1>Vendas</h1>
+            <p>Acompanhe confirmação, pagamento e situação fiscal separadamente.</p>
+        </div>
+    </header>
+    @if (TempData["Success"] is string ok) { <div class="commercial-alert success" role="status">@ok</div> }
+    @if (TempData["Error"] is string err) { <div class="commercial-alert error" role="alert">@err</div> }
+
+    <div class="commercial-kpis compact" aria-label="Indicadores de vendas">
+        <div><span>Vendas ativas</span><strong>@(Model.Summary.Total - Model.Summary.Cancelled)</strong><small>@CommercialPresentation.Money(Model.Summary.TotalValue)</small></div>
+        <div><span>Confirmadas</span><strong>@Model.Summary.Confirmed</strong></div>
+        <div><span>Pagamento pendente</span><strong>@Model.Summary.AwaitingPayment</strong></div>
+        <div><span>Concluídas</span><strong>@Model.Summary.Completed</strong></div>
+    </div>
+
+    <form method="get" class="commercial-filters sales-filters" aria-label="Filtros de vendas">
+        <label class="commercial-search"><span class="commercial-visually-hidden">Buscar venda</span><input type="search" name="Search" value="@f.Search" placeholder="Número, cliente ou referência" autocomplete="off" /></label>
+        <label><span>Comercial</span><select name="Status"><option value="">Todas</option>@foreach (var status in Enum.GetValues<SaleStatus>()) { <option value="@status" selected="@(f.Status == status)">@CommercialPresentation.Label(status)</option> }</select></label>
+        <label><span>Pagamento</span><select name="PaymentStatus"><option value="">Todos</option>@foreach (var status in Enum.GetValues<PaymentStatus>()) { <option value="@status" selected="@(f.PaymentStatus == status)">@CommercialPresentation.Label(status)</option> }</select></label>
+        <label><span>Fiscal</span><select name="FiscalStatus"><option value="">Todos</option>@foreach (var status in Enum.GetValues<FiscalDocumentStatus>()) { <option value="@status" selected="@(f.FiscalStatus == status)">@CommercialPresentation.Label(status)</option> }</select></label>
+        <label><span>De</span><input type="date" name="From" value="@f.From?.ToString("yyyy-MM-dd")" /></label>
+        <label><span>Até</span><input type="date" name="To" value="@f.To?.ToString("yyyy-MM-dd")" /></label>
+        <button class="commercial-button primary" type="submit">Aplicar filtros</button>
+        @if (hasFilters) { <a class="commercial-button ghost" asp-action="Index">Limpar filtros</a> }
+    </form>
+
+    <section class="commercial-card" aria-labelledby="sales-table-title">
+        <header class="commercial-card-head"><div><h2 id="sales-table-title">Vendas</h2><span>@Model.Page.TotalCount registro(s)</span></div></header>
+        @if (Model.Page.Items.Count == 0)
+        {
+            <div class="commercial-empty" role="status"><strong>@(hasFilters ? "Nenhuma venda corresponde aos filtros" : "Nenhuma venda cadastrada")</strong><span>@(hasFilters ? "Revise os critérios ou limpe os filtros." : "As vendas serão criadas a partir de orçamentos aprovados.")</span>@if (hasFilters) { <a class="commercial-button" asp-action="Index">Limpar filtros</a> }</div>
+        }
+        else
+        {
+            <div class="commercial-table-scroll" tabindex="0" aria-label="Tabela de vendas">
+                <table>
+                    <thead><tr><th>Número</th><th>Cliente</th><th>Origem</th><th>Data</th><th>Comercial</th><th>Pagamento</th><th>Fiscal</th><th class="num">Total</th><th class="actions-column">Ações</th></tr></thead>
+                    <tbody>
+                    @foreach (var x in Model.Page.Items)
+                    {
+                        <tr class="@(x.PaymentStatus == PaymentStatus.Pending && x.Status != SaleStatus.Cancelled ? "has-pending" : null)">
+                            <td><a class="document-number" asp-action="Details" asp-route-id="@x.Id">VEN-@x.Number.ToString("000000")</a></td>
+                            <td class="customer-cell">@x.CustomerName</td>
+                            <td>@(x.QuoteId.HasValue ? "Orçamento" : "Venda direta")</td>
+                            <td>@x.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td><span class="commercial-status @CommercialPresentation.Tone(x.Status)">@CommercialPresentation.Label(x.Status)</span></td>
+                            <td><span class="commercial-status @CommercialPresentation.Tone(x.PaymentStatus)">@CommercialPresentation.Label(x.PaymentStatus)</span></td>
+                            <td><span class="commercial-status @CommercialPresentation.Tone(x.FiscalStatus)">@CommercialPresentation.Label(x.FiscalStatus)</span></td>
+                            <td class="num total-cell">@CommercialPresentation.Money(x.Total)</td>
+                            <td><div class="row-actions"><a class="commercial-button small" asp-action="Details" asp-route-id="@x.Id">Visualizar</a>@if (x.Status == SaleStatus.Draft) { <a class="commercial-button small primary" asp-action="Details" asp-route-id="@x.Id">Confirmar</a> }<a class="commercial-icon-action" asp-action="Receipt" asp-route-id="@x.Id" target="_blank" aria-label="Imprimir comprovante da venda VEN-@x.Number.ToString("000000")" title="Imprimir">↗</a></div></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <footer class="commercial-pagination">
+                <span>Exibindo @firstRecord–@lastRecord de @Model.Page.TotalCount</span>
+                <nav aria-label="Paginação de vendas">
+                    @if (Model.Page.Page > 1) { <a class="commercial-button small" asp-route-Page="@(Model.Page.Page - 1)" asp-route-Search="@f.Search" asp-route-Status="@f.Status" asp-route-PaymentStatus="@f.PaymentStatus" asp-route-FiscalStatus="@f.FiscalStatus" asp-route-From="@f.From" asp-route-To="@f.To">Anterior</a> }
+                    <span>Página @Model.Page.Page de @Model.TotalPages</span>
+                    @if (Model.Page.Page < Model.TotalPages) { <a class="commercial-button small" asp-route-Page="@(Model.Page.Page + 1)" asp-route-Search="@f.Search" asp-route-Status="@f.Status" asp-route-PaymentStatus="@f.PaymentStatus" asp-route-FiscalStatus="@f.FiscalStatus" asp-route-From="@f.From" asp-route-To="@f.To">Próxima</a> }
+                </nav>
+            </footer>
+        }
+    </section>
+</section>

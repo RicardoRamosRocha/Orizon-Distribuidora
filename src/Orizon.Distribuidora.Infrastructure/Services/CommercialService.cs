@@ -127,25 +127,22 @@ public sealed class CommercialService(
     {
         try
         {
-            return await ExecuteTransactionAsync(async () =>
-            {
-                var customer = await db.CommercialPartners.AsNoTracking().FirstOrDefaultAsync(
-                    x => x.CompanyId == companyId && x.Id == request.CustomerId && x.IsActive, ct);
-                if (customer is null) return CommercialResult.Failure("customer_not_found", "Cliente não encontrado.");
+            var customer = await db.CommercialPartners.AsNoTracking().FirstOrDefaultAsync(
+                x => x.CompanyId == companyId && x.Id == request.CustomerId && x.IsActive, ct);
+            if (customer is null) return CommercialResult.Failure("customer_not_found", "Cliente não encontrado.");
 
-                var number = (await db.Quotes.Where(x => x.CompanyId == companyId)
-                    .MaxAsync(x => (long?)x.Number, ct) ?? 0) + 1;
-                var items = await BuildQuoteItems(companyId, request, ct);
-                var quote = new Quote(companyId, number, customer.Id, customer.Name, customer.Document, userId,
-                    DateTimeOffset.UtcNow, request.ValidUntil, request.PriceTableId, request.Notes,
-                    request.DeliveryAddress) { CreatedBy = userId };
-                quote.ReplaceDraft(request.Notes, request.DeliveryAddress, request.ValidUntil, request.Discount,
-                    request.Freight, request.AdditionalCharges, items);
-                if (markSent) quote.MarkSent(DateOnly.FromDateTime(DateTime.UtcNow));
-                db.Quotes.Add(quote);
-                await db.SaveChangesAsync(ct);
-                return CommercialResult.Success(quote.Id);
-            }, ct);
+            var number = (await db.Quotes.Where(x => x.CompanyId == companyId)
+                .MaxAsync(x => (long?)x.Number, ct) ?? 0) + 1;
+            var items = await BuildQuoteItems(companyId, request, ct);
+            var quote = new Quote(companyId, number, customer.Id, customer.Name, customer.Document, userId,
+                DateTimeOffset.UtcNow, request.ValidUntil, request.PriceTableId, request.Notes,
+                request.DeliveryAddress) { CreatedBy = userId };
+            quote.ReplaceDraft(request.Notes, request.DeliveryAddress, request.ValidUntil, request.Discount,
+                request.Freight, request.AdditionalCharges, items);
+            if (markSent) quote.MarkSent(DateOnly.FromDateTime(DateTime.UtcNow));
+            db.Quotes.Add(quote);
+            await db.SaveChangesAsync(ct);
+            return CommercialResult.Success(quote.Id);
         }
         catch (ArgumentException ex)
         {

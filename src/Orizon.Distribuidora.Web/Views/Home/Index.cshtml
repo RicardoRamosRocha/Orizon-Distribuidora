@@ -1,98 +1,92 @@
+@model Orizon.Distribuidora.Web.Models.Home.HomeIndexViewModel
 @{
-    ViewData["Title"] = "Dashboard";
+    Layout = "_HomeLayout";
+    ViewData["Title"] = "Início";
     ViewData["ApplicationName"] = "Distribuidora";
 }
 
-<header class="orizon-page-header">
-    <div>
-        <h1 class="orizon-page-title">Dashboard</h1>
+@section Styles {
+    <link rel="stylesheet" href="~/css/home-premium.css" asp-append-version="true" />
+}
 
-        <p class="orizon-page-description">
-            Visão geral da operação da distribuidora.
-        </p>
-    </div>
-
-    <orizon-button variant="primary"
-                   icon="plus">
-        Novo produto
-    </orizon-button>
-</header>
-
-<section class="orizon-dashboard-grid"
-         aria-label="Indicadores principais">
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Produtos cadastrados
-            </span>
-
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Produtos próprios e intermediados
-            </span>
+<div class="home-premium">
+    <header class="home-hero">
+        <div class="home-hero__copy">
+            <span class="home-eyebrow">ORIZON DISTRIBUIDORA</span>
+            <h1>@Model.Greeting</h1>
+            <p>Uma central única para organizar produtos, estoque, preços e o fluxo comercial da sua distribuidora.</p>
+            <div class="home-hero__actions">
+                <a class="home-button home-button--primary"
+                   asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                    <orizon-icon name="arrow-right" size="18"></orizon-icon>
+                    Acessar área administrativa
+                </a>
+                @if (!Model.IsAuthenticated)
+                {
+                    <a class="home-button home-button--secondary"
+                       asp-area="" asp-controller="Account" asp-action="Login">
+                        Entrar com sua conta
+                    </a>
+                }
+            </div>
         </div>
-    </orizon-card>
+        <aside class="home-start" aria-label="Orientação inicial">
+            <span class="home-start__icon" aria-hidden="true"><orizon-icon name="dashboard" size="22"></orizon-icon></span>
+            <div>
+                <strong>Comece pela Área Administrativa</strong>
+                <p>Entre no ambiente de trabalho para consultar a operação e acessar os módulos permitidos ao seu perfil.</p>
+            </div>
+        </aside>
+    </header>
 
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Estoque físico
-            </span>
+    @if (Model.CanAccessAdministration)
+    {
+        <section class="home-section" aria-labelledby="quick-access-title">
+            <div class="home-section__heading">
+                <div>
+                    <span class="home-eyebrow">ACESSO RÁPIDO</span>
+                    <h2 id="quick-access-title">Retome seu trabalho</h2>
+                </div>
+                <span>Atalhos para áreas autorizadas</span>
+            </div>
+            <div class="home-shortcuts">
+                <a asp-area="Admin" asp-controller="Products" asp-action="Index">
+                    <span><orizon-icon name="package" size="21"></orizon-icon></span>
+                    <strong>Produtos</strong><small>Catálogo e cadastros</small>
+                </a>
+                <a asp-area="Admin" asp-controller="Quotes" asp-action="Index">
+                    <span aria-hidden="true"><orizon-icon name="clipboard" size="21"></orizon-icon></span>
+                    <strong>Orçamentos</strong><small>Propostas comerciais</small>
+                </a>
+                <a asp-area="Admin" asp-controller="Stock" asp-action="Index">
+                    <span><orizon-icon name="warehouse" size="21"></orizon-icon></span>
+                    <strong>Estoque</strong><small>Saldos e movimentações</small>
+                </a>
+                <a asp-area="Admin" asp-controller="Importacao" asp-action="Index">
+                    <span><orizon-icon name="upload" size="21"></orizon-icon></span>
+                    <strong>Importação</strong><small>Entrada assistida de dados</small>
+                </a>
+                <button type="button" data-pdf-summer-open>
+                    <span><orizon-icon name="calculator" size="21"></orizon-icon></span>
+                    <strong>Calculadora de PDF</strong><small>Conferência de documentos</small>
+                </button>
+            </div>
+        </section>
+    }
 
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Itens disponíveis
-            </span>
+    <section class="home-section" aria-labelledby="platform-title">
+        <div class="home-section__heading">
+            <div>
+                <span class="home-eyebrow">PLATAFORMA</span>
+                <h2 id="platform-title">A operação, conectada de ponta a ponta</h2>
+            </div>
         </div>
-    </orizon-card>
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Estoque baixo
-            </span>
-
-            <strong class="orizon-stat-value">
-                0
-            </strong>
-
-            <span class="orizon-stat-description">
-                Produtos que exigem atenção
-            </span>
+        <div class="home-modules">
+            <article><span>01</span><div><strong>Produtos e cadastros</strong><p>Organize o catálogo e as informações que sustentam a operação.</p></div></article>
+            <article><span>02</span><div><strong>Estoque</strong><p>Acompanhe saldos, entradas, saídas e rastreabilidade.</p></div></article>
+            <article><span>03</span><div><strong>Preços</strong><p>Mantenha custos e valores de venda consistentes.</p></div></article>
+            <article><span>04</span><div><strong>Orçamentos e vendas</strong><p>Conduza o fluxo comercial não fiscal com clareza.</p></div></article>
+            <article><span>05</span><div><strong>Administração</strong><p>Gerencie empresa, acessos, preferências e auditoria.</p></div></article>
         </div>
-    </orizon-card>
-
-    <orizon-card>
-        <div class="orizon-stat-card">
-            <span class="orizon-stat-label">
-                Vendas do mês
-            </span>
-
-            <strong class="orizon-stat-value">
-                R$ 0,00
-            </strong>
-
-            <span class="orizon-stat-description">
-                Nenhuma venda registrada
-            </span>
-        </div>
-    </orizon-card>
-
-</section>
-
-<section style="margin-top: 1.5rem;">
-    <orizon-card title="Fundação do sistema">
-        <orizon-alert variant="success"
-                      title="Orizon UI integrado">
-            A aplicação está usando o layout administrativo e os componentes
-            compartilhados do ecossistema Orizon.
-        </orizon-alert>
-    </orizon-card>
-</section>
+    </section>
+</div>

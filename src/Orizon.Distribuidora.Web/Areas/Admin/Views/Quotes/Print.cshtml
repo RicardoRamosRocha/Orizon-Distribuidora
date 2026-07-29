@@ -1,7 +1,31 @@
 @model Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial.QuoteDetailsViewModel
-@{Layout=null;var q=Model.Quote;}
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>Orçamento ORC-@q.Number.ToString("000000")</title><link rel="stylesheet" href="~/css/commercial-print.css" asp-append-version="true"/></head><body><main class="print-document">
-<header><div><h1>@(Model.Company?.TradeName??"Empresa")</h1><p>@Model.Company?.LegalName · CNPJ/CPF @Model.Company?.Document</p></div><div><strong>ORÇAMENTO</strong><span>ORC-@q.Number.ToString("000000")</span></div></header>
-<div class="warning">DOCUMENTO NÃO FISCAL — NÃO SUBSTITUI NOTA FISCAL</div><section class="meta"><p><strong>Cliente:</strong> @q.CustomerName</p><p><strong>Documento:</strong> @(q.CustomerDocument??"Não informado")</p><p><strong>Emissão:</strong> @q.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p><p><strong>Validade:</strong> @q.ValidUntil.ToString("dd/MM/yyyy")</p></section>
-<table><thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Quantidade</th><th>Preço</th><th>Desconto</th><th>Total</th></tr></thead><tbody>@foreach(var x in q.Items){<tr><td>@x.ProductCode</td><td>@x.Description</td><td>@x.Unit</td><td>@x.Quantity.ToString("N3")</td><td>@x.UnitPrice.ToString("C")</td><td>@x.Discount.ToString("C")</td><td>@x.Total.ToString("C")</td></tr>}</tbody></table>
-<section class="totals"><p>Subtotal <strong>@q.Subtotal.ToString("C")</strong></p><p>Desconto <strong>@q.Discount.ToString("C")</strong></p><p>Frete <strong>@q.Freight.ToString("C")</strong></p><p class="grand">Total <strong>@q.Total.ToString("C")</strong></p></section>@if(!string.IsNullOrWhiteSpace(q.Notes)){<section><h2>Observações</h2><p>@q.Notes</p></section>}<footer>Referência interna: @q.Id · Responsável: sistema Orizon Distribuidora</footer></main><button class="print-button" onclick="window.print()">Imprimir / Salvar como PDF</button></body></html>
+@using Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial
+@{ Layout = null; var q = Model.Quote; }
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Orçamento ORC-@q.Number.ToString("000000")</title><link rel="stylesheet" href="~/css/commercial-print.css" asp-append-version="true" /></head>
+<body>
+<main class="print-document quote-document">
+    <header class="document-header">
+        <div class="company-block"><span class="company-mark" aria-hidden="true">O</span><div><h1>@(Model.Company?.TradeName ?? "Empresa")</h1><p>@Model.Company?.LegalName</p><p>CNPJ/CPF @Model.Company?.Document</p></div></div>
+        <div class="document-identity"><strong>ORÇAMENTO</strong><span>ORC-@q.Number.ToString("000000")</span><small class="status-label">@CommercialPresentation.Label(q.Status)</small></div>
+    </header>
+    <div class="warning">DOCUMENTO NÃO FISCAL — NÃO SUBSTITUI NOTA FISCAL</div>
+    <section class="document-meta" aria-label="Dados do orçamento">
+        <div class="meta-customer"><span>Cliente</span><strong>@q.CustomerName</strong><small>Documento: @(q.CustomerDocument ?? "Não informado")</small></div>
+        <dl><dt>Emissão</dt><dd>@q.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd><dt>Validade</dt><dd>@q.ValidUntil.ToString("dd/MM/yyyy")</dd></dl>
+    </section>
+    <table class="document-items">
+        <thead><tr><th class="code">Código</th><th class="description">Descrição</th><th class="unit">Un.</th><th class="numeric quantity">Qtd.</th><th class="numeric money">Preço</th><th class="numeric money">Desconto</th><th class="numeric money">Total</th></tr></thead>
+        <tbody>@foreach (var x in q.Items) { <tr><td>@x.ProductCode</td><td>@x.Description</td><td>@x.Unit</td><td class="numeric">@x.Quantity.ToString("N3")</td><td class="numeric">@CommercialPresentation.Money(x.UnitPrice)</td><td class="numeric">@CommercialPresentation.Money(x.Discount)</td><td class="numeric"><strong>@CommercialPresentation.Money(x.Total)</strong></td></tr> }</tbody>
+    </table>
+    <section class="financial-summary">
+        <dl><dt>Subtotal</dt><dd>@CommercialPresentation.Money(q.Subtotal)</dd><dt>Desconto</dt><dd>@CommercialPresentation.Money(q.Discount)</dd><dt>Frete</dt><dd>@CommercialPresentation.Money(q.Freight)</dd>@if (q.AdditionalCharges != 0) { <dt>Acréscimos</dt><dd>@CommercialPresentation.Money(q.AdditionalCharges)</dd> }<dt class="grand">Total</dt><dd class="grand">@CommercialPresentation.Money(q.Total)</dd></dl>
+    </section>
+    @if (!string.IsNullOrWhiteSpace(q.DeliveryAddress)) { <section class="document-note"><h2>Entrega</h2><p>@q.DeliveryAddress</p></section> }
+    @if (!string.IsNullOrWhiteSpace(q.Notes)) { <section class="document-note"><h2>Observações</h2><p>@q.Notes</p></section> }
+    <footer class="document-footer"><span>Referência interna: @q.Id</span><span>Orizon Distribuidora · Documento comercial não fiscal</span></footer>
+</main>
+<button class="print-button" type="button" onclick="window.print()">Imprimir / Salvar como PDF</button>
+</body>
+</html>

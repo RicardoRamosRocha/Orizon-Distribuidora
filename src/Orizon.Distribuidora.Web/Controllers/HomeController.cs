@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Orizon.Distribuidora.Infrastructure.Identity;
 using Orizon.Distribuidora.Web.Models;
+using Orizon.Distribuidora.Web.Models.Home;
 
 namespace Orizon.Distribuidora.Web.Controllers;
 
@@ -13,9 +16,15 @@ public class HomeController : Controller
         _logger = logger;
     }
 
+    [AllowAnonymous]
     public IActionResult Index()
     {
-        return View();
+        return View(new HomeIndexViewModel
+        {
+            UserFirstName = HomeIndexViewModel.GetSafeFirstName(User.Identity?.Name),
+            IsAuthenticated = User.Identity?.IsAuthenticated == true,
+            CanAccessAdministration = User.IsInRole(Roles.Administrator)
+        });
     }
 
     public IActionResult Privacy()
