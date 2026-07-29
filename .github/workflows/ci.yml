@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: orizon_distribuidora
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d orizon_distribuidora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=orizon_distribuidora;Username=postgres;Password=postgres
+      ORIZON_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=orizon_distribuidora;Username=postgres;Password=postgres
+      Seed__Administrator__Email: ci-admin@orizon.local
+      Seed__Administrator__FullName: CI Administrator
+      Seed__Administrator__Password: CiOnly!Test123456
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://127.0.0.1:5080
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Restore
+        run: dotnet restore Orizon.Distribuidora.sln
+
+      - name: Build
+        run: dotnet build Orizon.Distribuidora.sln --configuration Release --no-restore
+
+      - name: Apply test database migrations
+        run: >-
+          dotnet ef database update
+          --project src/Orizon.Distribuidora.Infrastructure
+          --startup-project src/Orizon.Distribuidora.Web
+          --configuration Release
+          --no-build
+
+      - name: Seed test database
+        shell: bash
+        run: |
+          dotnet run \
+            --project src/Orizon.Distribuidora.Web \
+            --configuration Release \
+            --no-build \
+            --no-launch-profile > /tmp/orizon-ci-seed.log 2>&1 &
+          app_pid=$!
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5080/health > /dev/null; then
+              kill "$app_pid"
+              wait "$app_pid" || true
+              exit 0
+            fi
+
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat /tmp/orizon-ci-seed.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          cat /tmp/orizon-ci-seed.log
+          kill "$app_pid" 2>/dev/null || true
+          wait "$app_pid" || true
+          exit 1
+
+      - name: Test
+        run: dotnet test Orizon.Distribuidora.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
+          retention-days: 7
