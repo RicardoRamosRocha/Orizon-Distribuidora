@@ -1,0 +1,92 @@
+<div class="pdf-summer" data-pdf-summer>
+    <button class="pdf-summer-launcher" type="button" data-pdf-summer-open
+            aria-haspopup="dialog" aria-controls="pdf-summer-panel" aria-expanded="false"
+            aria-label="Abrir Calculadora de PDF" title="Calculadora de PDF">
+        <orizon-icon name="calculator" size="24" aria-hidden="true" />
+        <span class="pdf-summer-visually-hidden">Calculadora de PDF</span>
+    </button>
+
+    <div class="pdf-summer-backdrop" data-pdf-summer-close hidden></div>
+    <section class="pdf-summer-panel" id="pdf-summer-panel" role="dialog" aria-modal="true"
+             aria-labelledby="pdf-summer-title" aria-describedby="pdf-summer-description" hidden>
+        <header class="pdf-summer-header" data-pdf-summer-drag-handle>
+            <div class="pdf-summer-heading">
+                <span class="pdf-summer-heading-icon" aria-hidden="true">
+                    <orizon-icon name="calculator" size="22" />
+                </span>
+                <div>
+                    <div class="pdf-summer-title-row">
+                        <h2 id="pdf-summer-title">Calculadora de PDF</h2>
+                        <span class="pdf-summer-drag-indicator" aria-hidden="true"></span>
+                        <span class="pdf-summer-visually-hidden">Arraste para mover o painel</span>
+                    </div>
+                    <p id="pdf-summer-description">Importe notas em PDF e confira o total dos documentos.</p>
+                </div>
+            </div>
+            <div class="pdf-summer-header-actions">
+                <button class="pdf-summer-icon-button pdf-summer-restore-button" type="button"
+                        data-pdf-summer-restore aria-label="Restaurar posição da Calculadora de PDF"
+                        title="Restaurar posição">↺</button>
+                <button class="pdf-summer-icon-button" type="button" data-pdf-summer-close
+                        aria-label="Fechar Calculadora de PDF" title="Fechar">×</button>
+            </div>
+        </header>
+
+        <div class="pdf-summer-content">
+            <div class="pdf-summer-dropzone" data-pdf-dropzone tabindex="0" role="button"
+                 aria-label="Adicionar arquivos PDF">
+                <span class="pdf-summer-dropzone-icon" aria-hidden="true">
+                    <orizon-icon name="cloud-upload" size="28" />
+                </span>
+                <strong>Arraste seus PDFs para cá</strong>
+                <span>ou escolha arquivos e pastas do seu computador</span>
+                <div class="pdf-summer-import-actions">
+                    <button class="pdf-summer-button is-primary" type="button" data-select-pdfs>
+                        <orizon-icon name="file" size="17" /> Selecionar PDFs
+                    </button>
+                    <button class="pdf-summer-button" type="button" data-select-folder>
+                        <orizon-icon name="folder-open" size="17" /> Selecionar pasta
+                    </button>
+                </div>
+            </div>
+
+            <input class="pdf-summer-file-input" data-pdf-input type="file"
+                   accept="application/pdf,.pdf" multiple />
+            <input class="pdf-summer-file-input" data-folder-input type="file"
+                   accept="application/pdf,.pdf" multiple webkitdirectory directory />
+
+            <div class="pdf-summer-toolbar">
+                <div>
+                    <strong data-document-count>Nenhum documento</strong>
+                    <span data-session-size>Adicione PDFs para começar.</span>
+                </div>
+                <button class="pdf-summer-link-button" type="button" data-clear-session disabled>
+                    Limpar sessão
+                </button>
+            </div>
+
+            <div class="pdf-summer-notice" data-pdf-notice role="status" aria-live="polite" hidden></div>
+
+            <div class="pdf-summer-empty" data-pdf-empty>
+                <orizon-icon name="file" size="30" />
+                <strong>Seus documentos aparecerão aqui</strong>
+                <span>O valor encontrado poderá ser revisado antes da soma.</span>
+            </div>
+
+            <div class="pdf-summer-documents" data-pdf-documents hidden></div>
+        </div>
+
+        <footer class="pdf-summer-footer">
+            <div class="pdf-summer-total">
+                <span>Total dos documentos válidos</span>
+                <strong data-grand-total>R$ 0,00</strong>
+                <small data-valid-summary>0 documentos incluídos</small>
+            </div>
+            <button class="pdf-summer-button is-primary is-process" type="button"
+                    data-process-pdfs disabled>
+                <orizon-icon name="calculator" size="18" />
+                <span data-process-label>Processar documentos</span>
+            </button>
+        </footer>
+    </section>
+</div>

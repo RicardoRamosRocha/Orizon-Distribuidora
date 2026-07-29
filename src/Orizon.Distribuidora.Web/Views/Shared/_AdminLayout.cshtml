@@ -14,6 +14,7 @@
     <meta name="request-verification-token" content="@requestToken" />
     <link rel="stylesheet" href="~/_content/Orizon.UI/css/orizon.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-navigation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pdf-summer.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="orizon-admin-body">
@@ -32,10 +33,12 @@
             <div class="orizon-admin-footer"><partial name="_Footer" /></div>
         </div>
     </div>
+    <partial name="_PdfSummer" />
     <script src="~/_content/Orizon.UI/js/layout/admin-layout.js" asp-append-version="true"></script>
     <script src="~/_content/Orizon.UI/js/layout/sidebar.js" asp-append-version="true"></script>
     <script src="~/_content/Orizon.UI/js/layout/theme.js" asp-append-version="true"></script>
     <script src="~/js/admin-navigation.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/pdf-summer.js" asp-append-version="true"></script>
     <script type="module" src="~/_content/Orizon.UI/js/orizon.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

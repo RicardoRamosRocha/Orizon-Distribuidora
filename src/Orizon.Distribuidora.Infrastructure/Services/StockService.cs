@@ -9,6 +9,105 @@ namespace Orizon.Distribuidora.Infrastructure.Services;
 
 public sealed class StockService(ApplicationDbContext db) : IStockService
 {
+    public async Task<StockOperationResult> RegisterStockIssueBatchAsync(
+        Guid companyId, Guid? userId, RegisterStockIssueBatchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (companyId == Guid.Empty) return StockOperationResult.Failure("company_required", "A empresa atual não foi identificada.");
+        if (request.Items.Count == 0) return StockOperationResult.Success(Guid.Empty, 0);
+        if (request.Items.Any(x => x.Quantity <= 0 || string.IsNullOrWhiteSpace(x.OperationKey)))
+            return StockOperationResult.Failure("invalid_batch", "A baixa contém itens inválidos.");
+
+        try
+        {
+            if (db.Database.CurrentTransaction is not null)
+                return await ExecuteBatchAsync();
+
+            StockOperationResult? result = null;
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                db.ChangeTracker.Clear();
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                try
+                {
+                    result = await ExecuteBatchAsync();
+                    if (result.Succeeded) await transaction.CommitAsync(cancellationToken);
+                    else await transaction.RollbackAsync(cancellationToken);
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
+            return result ?? StockOperationResult.Failure("stock_error", "Não foi possível registrar a baixa de estoque.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return StockOperationResult.Failure("concurrency_conflict", "O saldo foi alterado por outra operação.");
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            return StockOperationResult.Failure("persistence_error", "Não foi possível registrar a baixa de estoque.");
+        }
+
+        async Task<StockOperationResult> ExecuteBatchAsync()
+        {
+            Guid lastMovementId = Guid.Empty;
+            decimal lastQuantity = 0;
+            foreach (var item in request.Items)
+            {
+                var existing = await db.StockMovements.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.CompanyId == companyId && x.OperationKey == item.OperationKey,
+                        cancellationToken);
+                if (existing is not null)
+                {
+                    lastMovementId = existing.Id;
+                    lastQuantity = existing.ResultingQuantity;
+                    continue;
+                }
+
+                var product = await db.Products.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == item.ProductId && x.CompanyId == companyId,
+                        cancellationToken);
+                if (product is null) return StockOperationResult.Failure("product_not_found", "Produto não encontrado.");
+                if (!product.ControlsStock)
+                    return StockOperationResult.Failure("stock_not_controlled",
+                        "O produto não controla estoque físico.");
+                if (!await db.Warehouses.AsNoTracking().AnyAsync(
+                        x => x.Id == item.WarehouseId && x.CompanyId == companyId, cancellationToken))
+                    return StockOperationResult.Failure("warehouse_not_found", "Depósito não encontrado.");
+
+                var balance = await db.StockBalances.FirstOrDefaultAsync(x =>
+                    x.CompanyId == companyId && x.ProductId == item.ProductId &&
+                    x.WarehouseId == item.WarehouseId, cancellationToken);
+                if (balance is null)
+                    return StockOperationResult.Failure("insufficient_stock",
+                        "Saldo insuficiente para a movimentação.");
+                StockMovement movement;
+                try
+                {
+                    movement = balance.Apply(StockMovementType.SaleIssue, item.Quantity, item.Reason,
+                        item.InternalLocationId, item.Notes, item.UnitCost, item.ReferenceType,
+                        item.ReferenceId, item.DocumentNumber, item.OperationKey, userId, item.OccurredAt);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return StockOperationResult.Failure("insufficient_stock", ex.Message);
+                }
+                balance.UpdatedBy = userId;
+                db.StockMovements.Add(movement);
+                lastMovementId = movement.Id;
+                lastQuantity = movement.ResultingQuantity;
+            }
+            await db.SaveChangesAsync(cancellationToken);
+            return StockOperationResult.Success(lastMovementId, lastQuantity);
+        }
+    }
+
     public Task<StockOperationResult> RegisterStockEntryAsync(Guid companyId, Guid? userId, RegisterStockMovementRequest request, CancellationToken cancellationToken = default) =>
         RegisterAsync(companyId, userId, request, StockMovementType.PurchaseReceipt, cancellationToken);
 

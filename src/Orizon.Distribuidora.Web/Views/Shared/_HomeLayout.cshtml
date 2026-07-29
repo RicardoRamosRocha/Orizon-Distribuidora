@@ -1,0 +1,54 @@
+@{
+    var pageTitle = ViewData["Title"]?.ToString();
+    var applicationName = ViewData["ApplicationName"]?.ToString() ?? "Distribuidora";
+    var fullTitle = string.IsNullOrWhiteSpace(pageTitle) ? applicationName : $"{pageTitle} | {applicationName}";
+}
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@fullTitle</title>
+    <link rel="stylesheet" href="~/_content/Orizon.UI/css/orizon.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pdf-summer.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="home-body">
+    <a class="orizon-skip-link" href="#main-content">Ir para o conteúdo principal</a>
+    <header class="home-topbar">
+        <a class="home-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="Orizon Distribuidora — início">
+            <span aria-hidden="true">O</span>
+            <span><strong>ORIZON</strong><small>DISTRIBUIDORA</small></span>
+        </a>
+        <div class="home-topbar__actions">
+            <button type="button" class="home-theme-button" data-theme-toggle aria-label="Alternar tema"
+                    aria-pressed="false" title="Alternar tema">
+                <orizon-icon name="moon" size="19" data-theme-icon></orizon-icon>
+            </button>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="home-admin-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Área administrativa</a>
+            }
+            else
+            {
+                <a class="home-admin-link" asp-area="" asp-controller="Account" asp-action="Login">Entrar</a>
+            }
+        </div>
+    </header>
+    <main id="main-content" tabindex="-1">
+        @RenderBody()
+    </main>
+    <footer class="home-footer">
+        <span>Orizon Distribuidora</span>
+        <span>Gestão operacional integrada</span>
+    </footer>
+    @if (User.IsInRole(Orizon.Distribuidora.Infrastructure.Identity.Roles.Administrator))
+    {
+        <partial name="_PdfSummer" />
+        <script type="module" src="~/js/pdf-summer.js" asp-append-version="true"></script>
+    }
+    <script src="~/_content/Orizon.UI/js/layout/theme.js" asp-append-version="true"></script>
+    <script type="module" src="~/_content/Orizon.UI/js/orizon.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

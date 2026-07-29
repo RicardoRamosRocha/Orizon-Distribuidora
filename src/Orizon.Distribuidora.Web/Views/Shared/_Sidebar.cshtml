@@ -25,20 +25,28 @@
 
 <nav class="orizon-sidebar-navigation" aria-label="Navegação administrativa">
     <div class="orizon-sidebar-section">
-        <a class="orizon-sidebar-link @(IsActive("/Admin/Dashboard") ? "is-active" : null)" href="/Admin/Dashboard" data-tooltip="Dashboard">
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Dashboard") ? "is-active" : null)" href="/Admin/Dashboard" data-tooltip="Início">
             <orizon-icon name="house" size="20" class="orizon-sidebar-link-icon" />
-            <span class="orizon-sidebar-link-label">Dashboard</span>
+            <span class="orizon-sidebar-link-label">Início</span>
         </a>
         <a class="orizon-sidebar-link @(IsActive("/Admin/Products") ? "is-active" : null)" href="/Admin/Products" data-tooltip="Produtos">
             <orizon-icon name="package" size="20" class="orizon-sidebar-link-icon" />
             <span class="orizon-sidebar-link-label">Produtos</span>
         </a>
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Orcamentos") ? "is-active" : null)" href="/Admin/Orcamentos" data-tooltip="Orçamentos">
+            <orizon-icon name="clipboard" size="20" class="orizon-sidebar-link-icon" />
+            <span class="orizon-sidebar-link-label">Orçamentos</span>
+        </a>
+        <a class="orizon-sidebar-link @(IsActive("/Admin/Vendas") ? "is-active" : null)" href="/Admin/Vendas" data-tooltip="Vendas">
+            <orizon-icon name="receipt" size="20" class="orizon-sidebar-link-icon" />
+            <span class="orizon-sidebar-link-label">Vendas</span>
+        </a>
         <a class="orizon-sidebar-link @(IsActive("/Admin/Estoque") ? "is-active" : null)" href="/Admin/Estoque" data-tooltip="Estoque">
-            <orizon-icon name="warehouse" size="20" class="orizon-sidebar-link-icon" />
+            <orizon-icon name="boxes" size="20" class="orizon-sidebar-link-icon" />
             <span class="orizon-sidebar-link-label">Estoque</span>
         </a>
 
-        @foreach (var item in new[] { ("shopping-cart", "Compras"), ("receipt", "Vendas"), ("currency-dollar", "Financeiro"), ("chart-bar", "Relatórios") })
+        @foreach (var item in new[] { ("shopping-cart", "Compras"), ("dollar", "Financeiro"), ("chart-bar", "Relatórios") })
         {
             <span class="orizon-sidebar-link is-disabled" aria-disabled="true" data-tooltip="@item.Item2 — Em breve" tabindex="0">
                 <orizon-icon name="@item.Item1" size="20" class="orizon-sidebar-link-icon" />
@@ -49,10 +57,10 @@
     </div>
 
     <div class="orizon-sidebar-section orizon-sidebar-groups">
-        <div class="orizon-sidebar-group @(registrationsActive ? "is-expanded" : null)" data-sidebar-group="registrations">
-            <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(registrationsActive ? "is-active" : null)"
+        <div class="orizon-sidebar-group @(registrationsActive ? "is-expanded has-active-route" : null)" data-sidebar-group="registrations">
+            <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle"
                     data-sidebar-group-toggle aria-expanded="@(registrationsActive.ToString().ToLowerInvariant())" aria-controls="sidebar-registrations" data-tooltip="Cadastros">
-                <orizon-icon name="address-book" size="20" class="orizon-sidebar-link-icon" />
+                <orizon-icon name="id-card" size="20" class="orizon-sidebar-link-icon" />
                 <span class="orizon-sidebar-link-label">Cadastros</span>
                 <orizon-icon name="chevron-down" size="16" class="orizon-sidebar-group-chevron" />
             </button>
@@ -66,8 +74,8 @@
             </div>
         </div>
 
-        <div class="orizon-sidebar-group @(settingsActive ? "is-expanded" : null)" data-sidebar-group="settings">
-            <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle @(settingsActive ? "is-active" : null)"
+        <div class="orizon-sidebar-group @(settingsActive ? "is-expanded has-active-route" : null)" data-sidebar-group="settings">
+            <button type="button" class="orizon-sidebar-link orizon-sidebar-group-toggle"
                     data-sidebar-group-toggle aria-expanded="@(settingsActive.ToString().ToLowerInvariant())" aria-controls="sidebar-settings" data-tooltip="Administração">
                 <orizon-icon name="gear" size="20" class="orizon-sidebar-link-icon" />
                 <span class="orizon-sidebar-link-label">Administração</span>
@@ -87,7 +95,7 @@
 
 <div class="orizon-sidebar-footer">
     <a class="orizon-sidebar-link" href="/Admin/Help" data-tooltip="Ajuda">
-        <orizon-icon name="question" size="20" class="orizon-sidebar-link-icon" />
+        <orizon-icon name="info" size="20" class="orizon-sidebar-link-icon" />
         <span class="orizon-sidebar-link-label">Ajuda</span>
     </a>
     <button type="button" class="orizon-sidebar-link orizon-sidebar-collapse-button" data-sidebar-collapse

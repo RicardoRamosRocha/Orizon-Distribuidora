@@ -1,0 +1,140 @@
+@model Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial.QuoteFormViewModel
+@{
+    ViewData["Title"] = Model.Id.HasValue ? "Editar orçamento" : "Novo orçamento";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/commercial-premium.css" asp-append-version="true" />
+}
+
+<section class="commercial-workspace" data-quote-editor data-products-url="@Url.Action("Products")">
+    <header class="commercial-header">
+        <div>
+            <span class="commercial-eyebrow">Comercial · Orçamentos</span>
+            <h1>@ViewData["Title"]</h1>
+            <p>Monte a proposta; os valores finais são recalculados e validados no servidor.</p>
+        </div>
+        <div class="commercial-actions">
+            <a class="commercial-button" asp-action="Index">Voltar</a>
+            <button class="commercial-button" type="submit" form="quote-form" name="intent" value="draft">Salvar rascunho</button>
+            <button class="commercial-button primary" type="submit" form="quote-form" name="intent" value="send">Salvar e enviar</button>
+        </div>
+    </header>
+
+    <form id="quote-form" method="post"
+          action="@(Model.Id.HasValue ? Url.Action("Edit", new { id = Model.Id }) : Url.Action("Create"))"
+          class="quote-editor" novalidate>
+        @Html.AntiForgeryToken()
+        <input asp-for="ConcurrencyToken" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="commercial-alert error" role="alert"></div>
+
+        <section class="editor-panel" aria-labelledby="commercial-data-title">
+            <h2 id="commercial-data-title">Dados comerciais</h2>
+            <div class="editor-fields">
+                <label>
+                    <span>Cliente</span>
+                    <select asp-for="CustomerId" required>
+                        <option value="">Selecione o cliente</option>
+                        @foreach (var option in Model.Options.Customers) { <option value="@option.Id">@option.Label</option> }
+                    </select>
+                    <span asp-validation-for="CustomerId" class="commercial-validation"></span>
+                </label>
+                <label>
+                    <span>Validade</span>
+                    <input asp-for="ValidUntil" type="date" required />
+                    <span asp-validation-for="ValidUntil" class="commercial-validation"></span>
+                </label>
+                <label>
+                    <span>Tabela de preço</span>
+                    <select asp-for="PriceTableId">
+                        <option value="">Preço padrão do produto</option>
+                        @foreach (var option in Model.Options.PriceTables) { <option value="@option.Id">@option.Label</option> }
+                    </select>
+                </label>
+                <label class="wide">
+                    <span>Endereço ou condição de entrega</span>
+                    <input asp-for="DeliveryAddress" placeholder="Opcional" />
+                </label>
+            </div>
+        </section>
+
+        <section class="editor-panel items-panel" aria-labelledby="items-title">
+            <div class="commercial-card-head">
+                <div><h2 id="items-title">Itens do orçamento</h2><span>Preço e desconto por item</span></div>
+                <button type="button" class="commercial-button primary add-product-button" data-add-item>
+                    <span aria-hidden="true">＋</span> Adicionar produto
+                </button>
+            </div>
+
+            <div class="product-picker" data-product-picker hidden>
+                <label>
+                    <span>Pesquisar produto</span>
+                    <input type="search" data-product-search placeholder="Código ou descrição"
+                           autocomplete="off" aria-controls="product-results" aria-autocomplete="list" />
+                </label>
+                <div id="product-results" data-product-results role="listbox" aria-label="Resultados da pesquisa"></div>
+                <p class="product-picker-status" data-product-status role="status" aria-live="polite"></p>
+                <button type="button" class="commercial-button" data-close-picker>Fechar</button>
+            </div>
+
+            <div class="commercial-table-scroll" tabindex="0" aria-label="Itens do orçamento">
+                <table class="editor-items">
+                    <thead><tr><th>Produto</th><th>Depósito</th><th class="num">Quantidade</th><th class="num">Preço</th><th class="num">Desconto</th><th class="num">Total prévio</th><th>Ação</th></tr></thead>
+                    <tbody data-items>
+                    @for (var i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr data-item-row data-product-id="@Model.Items[i].ProductId">
+                            <td class="item-product"><input type="hidden" asp-for="Items[i].ProductId" /><input asp-for="Items[i].ProductLabel" readonly /></td>
+                            <td><select asp-for="Items[i].WarehouseId"><option value="">Sem depósito</option>@foreach (var option in Model.Options.Warehouses) { <option value="@option.Id">@option.Label</option> }</select></td>
+                            <td>
+                                <div class="quantity-control">
+                                    <button type="button" data-quantity-decrease aria-label="Diminuir quantidade">−</button>
+                                    <input asp-for="Items[i].Quantity" type="text" inputmode="decimal" min="1" step="1"
+                                           data-quantity aria-label="Quantidade" aria-describedby="quantity-help" />
+                                    <button type="button" data-quantity-increase aria-label="Aumentar quantidade">+</button>
+                                </div>
+                                <span asp-validation-for="Items[i].Quantity" class="commercial-validation"></span>
+                            </td>
+                            <td><input asp-for="Items[i].UnitPrice" type="text" inputmode="decimal" data-price aria-label="Preço unitário" /></td>
+                            <td><input asp-for="Items[i].Discount" type="text" inputmode="decimal" data-discount aria-label="Desconto do item" /></td>
+                            <td class="line-total num" data-line-total>R$ 0,00</td>
+                            <td><button type="button" class="commercial-link danger remove-item" data-remove-item aria-label="Remover item">Remover</button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <p id="quantity-help" class="commercial-help">Quantidade mínima 1. O passo padrão é uma unidade porque o cadastro atual não informa se o produto é fracionável.</p>
+            <div class="commercial-empty item-empty" data-items-empty>
+                <strong>Nenhum produto adicionado</strong>
+                <span>Use “Adicionar produto” para montar o orçamento.</span>
+            </div>
+        </section>
+
+        <div class="editor-bottom">
+            <section class="editor-panel editor-notes">
+                <h2>Observações</h2>
+                <textarea asp-for="Notes" rows="4" placeholder="Informações úteis para o cliente"></textarea>
+            </section>
+            <aside class="editor-summary" aria-labelledby="summary-title">
+                <h2 id="summary-title">Resumo financeiro</h2>
+                <div class="summary-row"><span>Subtotal</span><strong data-document-subtotal>R$ 0,00</strong></div>
+                <label><span>Desconto geral</span><input asp-for="Discount" type="text" inputmode="decimal" data-document-discount /></label>
+                <label><span>Frete</span><input asp-for="Freight" type="text" inputmode="decimal" data-freight /></label>
+                <label><span>Acréscimos</span><input asp-for="AdditionalCharges" type="text" inputmode="decimal" data-charges /></label>
+                <div class="summary-total" aria-live="polite"><span>Total prévio</span><strong data-document-total>R$ 0,00</strong></div>
+            </aside>
+        </div>
+
+        <select data-warehouse-template hidden><option value="">Sem depósito</option>@foreach (var option in Model.Options.Warehouses) { <option value="@option.Id">@option.Label</option> }</select>
+        <footer class="editor-actions">
+            <a class="commercial-button" asp-action="Index">Cancelar</a>
+            <button class="commercial-button" type="submit" name="intent" value="draft">Salvar rascunho</button>
+            <button class="commercial-button primary" type="submit" name="intent" value="send">Salvar e enviar</button>
+        </footer>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/quote-editor.js" asp-append-version="true"></script>
+}

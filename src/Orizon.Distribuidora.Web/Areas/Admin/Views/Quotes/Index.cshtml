@@ -1,0 +1,87 @@
+@model Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial.QuoteIndexViewModel
+@using Orizon.Distribuidora.Domain.Enums
+@using Orizon.Distribuidora.Web.Areas.Admin.Models.Commercial
+@{
+    ViewData["Title"] = "Orçamentos";
+    var f = Model.Filter;
+    var hasFilters = !string.IsNullOrWhiteSpace(f.Search) || f.CustomerId.HasValue || f.Status.HasValue || f.From.HasValue || f.To.HasValue;
+    var firstRecord = Model.Page.TotalCount == 0 ? 0 : ((Model.Page.Page - 1) * Model.Page.PageSize) + 1;
+    var lastRecord = Math.Min(Model.Page.Page * Model.Page.PageSize, Model.Page.TotalCount);
+}
+@section Styles { <link rel="stylesheet" href="~/css/commercial-premium.css" asp-append-version="true" /> }
+
+<section class="commercial-workspace">
+    <header class="commercial-header">
+        <div>
+            <nav class="commercial-breadcrumb" aria-label="Breadcrumb"><a href="/Admin/Dashboard">Dashboard</a><span aria-hidden="true">/</span><span>Orçamentos</span></nav>
+            <h1>Orçamentos</h1>
+            <p>Propostas comerciais, acompanhamento e conversão em vendas.</p>
+        </div>
+        <a class="commercial-button primary" asp-action="New"><span aria-hidden="true">＋</span>Novo orçamento</a>
+    </header>
+
+    @if (TempData["Success"] is string ok) { <div class="commercial-alert success" role="status">@ok</div> }
+    @if (TempData["Error"] is string err) { <div class="commercial-alert error" role="alert">@err</div> }
+
+    <div class="commercial-kpis compact" aria-label="Indicadores de orçamentos">
+        <div><span>Em aberto</span><strong>@Model.Summary.Open</strong><small>@CommercialPresentation.Money(Model.Summary.OpenValue)</small></div>
+        <div><span>Aguardando resposta</span><strong>@Model.Summary.AwaitingResponse</strong></div>
+        <div><span>Aprovados</span><strong>@Model.Summary.Approved</strong></div>
+        <div><span>Conversão</span><strong>@Model.Summary.ConversionRate.ToString("N1")%</strong><small>@Model.Summary.Converted convertido(s)</small></div>
+    </div>
+
+    <form method="get" class="commercial-filters" aria-label="Filtros de orçamentos">
+        <label class="commercial-search">
+            <span class="commercial-visually-hidden">Buscar orçamento</span>
+            <input type="search" name="Search" value="@f.Search" placeholder="Número, cliente ou referência" autocomplete="off" />
+        </label>
+        <label><span>Situação</span><select name="Status"><option value="">Todas</option>@foreach (var status in Enum.GetValues<QuoteStatus>()) { <option value="@status" selected="@(f.Status == status)">@CommercialPresentation.Label(status)</option> }</select></label>
+        <label><span>De</span><input type="date" name="From" value="@f.From?.ToString("yyyy-MM-dd")" /></label>
+        <label><span>Até</span><input type="date" name="To" value="@f.To?.ToString("yyyy-MM-dd")" /></label>
+        <button class="commercial-button primary" type="submit">Aplicar filtros</button>
+        @if (hasFilters) { <a class="commercial-button ghost" asp-action="Index">Limpar filtros</a> }
+    </form>
+
+    <section class="commercial-card" aria-labelledby="quotes-table-title">
+        <header class="commercial-card-head"><div><h2 id="quotes-table-title">Orçamentos</h2><span>@Model.Page.TotalCount registro(s)</span></div></header>
+        @if (Model.Page.Items.Count == 0)
+        {
+            <div class="commercial-empty" role="status">
+                <strong>@(hasFilters ? "Nenhum orçamento corresponde aos filtros" : "Nenhum orçamento cadastrado")</strong>
+                <span>@(hasFilters ? "Revise os critérios ou limpe os filtros." : "Crie o primeiro orçamento para iniciar o fluxo comercial.")</span>
+                @if (hasFilters) { <a class="commercial-button" asp-action="Index">Limpar filtros</a> }
+                else { <a class="commercial-button primary" asp-action="New">Novo orçamento</a> }
+            </div>
+        }
+        else
+        {
+            <div class="commercial-table-scroll" tabindex="0" aria-label="Tabela de orçamentos">
+                <table>
+                    <thead><tr><th>Número</th><th>Cliente</th><th>Criação</th><th>Validade</th><th>Situação</th><th class="num">Total</th><th class="actions-column">Ações</th></tr></thead>
+                    <tbody>
+                    @foreach (var x in Model.Page.Items)
+                    {
+                        <tr>
+                            <td><a class="document-number" asp-action="Details" asp-route-id="@x.Id">ORC-@x.Number.ToString("000000")</a>@if (x.SaleId.HasValue) { <small class="cell-note">Venda vinculada</small> }</td>
+                            <td class="customer-cell">@x.CustomerName</td>
+                            <td>@x.IssuedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>@x.ValidUntil.ToString("dd/MM/yyyy")</td>
+                            <td><span class="commercial-status @CommercialPresentation.Tone(x.Status)">@CommercialPresentation.Label(x.Status)</span></td>
+                            <td class="num total-cell">@CommercialPresentation.Money(x.Total)</td>
+                            <td><div class="row-actions"><a class="commercial-button small" asp-action="Details" asp-route-id="@x.Id">Visualizar</a><a class="commercial-icon-action" asp-action="Print" asp-route-id="@x.Id" target="_blank" aria-label="Imprimir orçamento ORC-@x.Number.ToString("000000")" title="Imprimir">↗</a></div></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <footer class="commercial-pagination">
+                <span>Exibindo @firstRecord–@lastRecord de @Model.Page.TotalCount</span>
+                <nav aria-label="Paginação de orçamentos">
+                    @if (Model.Page.Page > 1) { <a class="commercial-button small" asp-route-Page="@(Model.Page.Page - 1)" asp-route-Search="@f.Search" asp-route-Status="@f.Status" asp-route-From="@f.From" asp-route-To="@f.To">Anterior</a> }
+                    <span>Página @Model.Page.Page de @Model.TotalPages</span>
+                    @if (Model.Page.Page < Model.TotalPages) { <a class="commercial-button small" asp-route-Page="@(Model.Page.Page + 1)" asp-route-Search="@f.Search" asp-route-Status="@f.Status" asp-route-From="@f.From" asp-route-To="@f.To">Próxima</a> }
+                </nav>
+            </footer>
+        }
+    </section>
+</section>

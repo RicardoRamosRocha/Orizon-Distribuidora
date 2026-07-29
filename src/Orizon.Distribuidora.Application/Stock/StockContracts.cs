@@ -29,6 +29,9 @@ public sealed record StockOperationResult(
         new(false, code, message, null, null);
 }
 
+public sealed record RegisterStockIssueBatchRequest(
+    IReadOnlyList<RegisterStockMovementRequest> Items);
+
 public sealed record StockBalanceFilter(
     Guid? ProductId = null,
     Guid? WarehouseId = null,
@@ -107,6 +110,7 @@ public interface IStockService
     Task<StockOperationResult> RegisterPositiveAdjustmentAsync(Guid companyId, Guid? userId, RegisterStockMovementRequest request, CancellationToken cancellationToken = default);
     Task<StockOperationResult> RegisterNegativeAdjustmentAsync(Guid companyId, Guid? userId, RegisterStockMovementRequest request, CancellationToken cancellationToken = default);
     Task<StockOperationResult> RegisterInitialBalanceAsync(Guid companyId, Guid? userId, RegisterStockMovementRequest request, CancellationToken cancellationToken = default);
+    Task<StockOperationResult> RegisterStockIssueBatchAsync(Guid companyId, Guid? userId, RegisterStockIssueBatchRequest request, CancellationToken cancellationToken = default);
     Task<StockBalanceDto?> GetStockBalanceAsync(Guid companyId, Guid productId, Guid warehouseId, CancellationToken cancellationToken = default);
     Task<PagedResult<StockBalanceDto>> ListStockBalancesAsync(Guid companyId, StockBalanceFilter filter, CancellationToken cancellationToken = default);
     Task<PagedResult<StockMovementDto>> ListStockMovementsAsync(Guid companyId, StockMovementFilter filter, CancellationToken cancellationToken = default);

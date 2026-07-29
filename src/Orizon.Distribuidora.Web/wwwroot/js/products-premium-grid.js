@@ -14,8 +14,15 @@
   const token = root.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
   if (!table || !tbody || !scroll || !form || !search) return;
 
-  const storageKey = "orizon.products.grid.v4";
-  const defaultState = { hiddenColumns: [], widths: {}, order: [], pinned: ["code", "name"] };
+  const schemaVersion = 5;
+  const storageKey = `orizon.products.grid.v${schemaVersion}`;
+  const defaultState = { schemaVersion, hiddenColumns: [], widths: {}, order: [], pinned: ["code"] };
+  const columnKeys = new Set(Array.from(table.querySelectorAll("col[data-col]"), function (col) {
+    return col.dataset.col;
+  }));
+  const hideableColumns = new Set(Array.from(root.querySelectorAll("[data-column-toggle]"), function (toggle) {
+    return toggle.dataset.columnToggle;
+  }));
   const totalRecords = Number(root.dataset.totalRecords) || 0;
   let state = loadState();
   let allFiltered = false;
@@ -179,9 +186,9 @@
 
   function loadState() {
     try {
-      return { ...defaultState, ...JSON.parse(localStorage.getItem(storageKey) || "{}") };
+      return normalizeState(JSON.parse(localStorage.getItem(storageKey) || "{}"));
     } catch {
-      return { ...defaultState };
+      return normalizeState();
     }
   }
 
@@ -202,7 +209,7 @@
       if (!response.ok) return;
       const data = await response.json();
       if (data.stateJson) {
-        state = { ...defaultState, ...JSON.parse(data.stateJson) };
+        state = normalizeState(JSON.parse(data.stateJson));
         localStorage.setItem(storageKey, JSON.stringify(state));
         applyColumns();
       }
@@ -213,6 +220,32 @@
 
   function jsonHeaders() {
     return { "Content-Type": "application/json", "RequestVerificationToken": token };
+  }
+
+  function normalizeState(candidate = {}) {
+    const hiddenColumns = Array.isArray(candidate.hiddenColumns)
+      ? [...new Set(candidate.hiddenColumns.filter(function (key) { return hideableColumns.has(key); }))]
+      : [];
+    const widths = {};
+    if (candidate.widths && typeof candidate.widths === "object" && !Array.isArray(candidate.widths)) {
+      Object.entries(candidate.widths).forEach(function ([key, value]) {
+        const limits = columnLimits(key);
+        const parsed = Number.parseFloat(value);
+        if (!limits || !Number.isFinite(parsed)) return;
+        widths[key] = `${Math.min(limits.max, Math.max(limits.min, Math.round(parsed)))}px`;
+      });
+    }
+    return { ...defaultState, hiddenColumns, widths };
+  }
+
+  function columnLimits(column) {
+    if (!columnKeys.has(column)) return null;
+    const header = table.querySelector(`th[data-column="${column}"][data-min-width][data-max-width]`);
+    const min = Number(header?.dataset.minWidth);
+    const max = Number(header?.dataset.maxWidth);
+    if (!header?.querySelector(`[data-resizer="${column}"]`)
+      || !Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max < min) return null;
+    return { min, max };
   }
 
   function applyColumns() {
@@ -466,7 +499,7 @@
     return `<tr data-row data-id="${escapeAttribute(item.id)}" aria-selected="false">
       <td class="products-select-cell products-sticky-select"><input type="checkbox" value="${escapeAttribute(item.id)}" data-row-select aria-label="Selecionar ${escapeAttribute(item.name)}"></td>
       <td data-column="code" class="products-code products-sticky-col">${escapeHtml(item.internalCode)}</td>
-      <td data-column="name" class="products-name products-sticky-col"><span>${name}</span>${item.shortDescription ? `<small>${escapeHtml(item.shortDescription)}</small>` : ""}</td>
+      <td data-column="name" class="products-name"><span title="${escapeAttribute(item.name)}">${name}</span>${item.shortDescription ? `<small>${escapeHtml(item.shortDescription)}</small>` : ""}</td>
       <td data-column="status"><span class="products-badge products-badge-status ${item.isActive ? "is-active" : "is-muted"}">${item.isActive ? "Ativo" : "Inativo"}</span></td>
       <td data-column="type"><span class="products-badge products-badge-type is-type-${typeClass}">${type}</span></td>
       <td data-column="category">${escapeHtml(item.categoryName || "-")}</td>
@@ -504,31 +537,56 @@
   }
 
   function startResize(event) {
+    if (event.button !== 0) return;
     event.preventDefault();
+    event.stopPropagation();
     const column = event.currentTarget.dataset.resizer;
     const col = table.querySelector(`[data-col="${column}"]`);
-    if (!col) return;
+    const limits = columnLimits(column);
+    if (!col || !limits) return;
     const startX = event.clientX;
     const startWidth = col.getBoundingClientRect().width;
+    let nextWidth = startWidth;
+    let frame = 0;
     document.body.style.cursor = "col-resize";
+    table.classList.add("is-resizing");
+    event.currentTarget.setPointerCapture?.(event.pointerId);
 
     const move = function (moveEvent) {
-      setColumnWidth(column, `${Math.max(96, Math.round(startWidth + moveEvent.clientX - startX))}px`);
+      nextWidth = Math.min(limits.max, Math.max(limits.min, Math.round(startWidth + moveEvent.clientX - startX)));
+      if (frame) return;
+      frame = requestAnimationFrame(function () {
+        frame = 0;
+        setColumnWidth(column, `${nextWidth}px`);
+      });
     };
     const stop = function () {
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", stop);
+      document.removeEventListener("pointercancel", stop);
+      window.removeEventListener("blur", stop);
+      if (frame) {
+        cancelAnimationFrame(frame);
+        setColumnWidth(column, `${nextWidth}px`);
+      }
       document.body.style.cursor = "";
-      state.widths[column] = col.style.width;
+      table.classList.remove("is-resizing");
+      state.widths[column] = `${nextWidth}px`;
       persistState();
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", stop);
+    document.addEventListener("pointercancel", stop);
+    window.addEventListener("blur", stop);
   }
 
   function setColumnWidth(column, width) {
     const col = table.querySelector(`[data-col="${column}"]`);
-    if (col) col.style.width = width;
+    const limits = columnLimits(column);
+    const parsed = Number.parseFloat(width);
+    if (col && limits && Number.isFinite(parsed)) {
+      col.style.width = `${Math.min(limits.max, Math.max(limits.min, Math.round(parsed)))}px`;
+    }
   }
 
   function toggleMenu(button, menu) {

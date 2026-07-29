@@ -1,0 +1,57 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background: #e9edf3; color: #182230; font: 12px/1.35 Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }
+.print-document { background: #fff; margin: 0 auto; max-width: 210mm; min-height: 260mm; padding: 10mm; }
+.document-header { align-items: flex-start; border-bottom: 1px solid #cfd6df; display: flex; gap: 12px; justify-content: space-between; padding-bottom: 7px; }
+.company-block { align-items: center; display: flex; gap: 9px; min-width: 0; }
+.company-mark { align-items: center; background: #075985; border-radius: 7px; color: #fff; display: inline-flex; flex: 0 0 30px; font-size: 18px; font-weight: 800; height: 30px; justify-content: center; }
+.company-block h1 { font-size: 16px; line-height: 1.15; margin: 0 0 2px; }
+.company-block p { color: #536174; font-size: 9px; margin: 0; }
+.document-identity { display: grid; flex: 0 0 auto; text-align: right; }
+.document-identity strong { color: #334155; font-size: 10px; letter-spacing: .08em; }
+.document-identity > span { font-size: 16px; font-weight: 800; }
+.status-label { color: #536174; font-size: 9px; font-weight: 700; }
+.warning { background: #fff7ed; border: 1px solid #c2410c; color: #9a3412; font-size: 10px; font-weight: 800; letter-spacing: .05em; margin: 7px 0; padding: 4px 8px; text-align: center; }
+.document-meta { background: #f8fafc; border: 1px solid #dbe1e8; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 7px; padding: 6px 8px; }
+.meta-customer { display: grid; min-width: 0; }
+.meta-customer span, .meta-customer small, .document-meta dt { color: #64748b; font-size: 9px; }
+.meta-customer strong { font-size: 11px; overflow-wrap: anywhere; }
+.document-meta dl { display: grid; gap: 1px 8px; grid-template-columns: auto auto; margin: 0; }
+.document-meta dd { font-variant-numeric: tabular-nums; margin: 0; text-align: right; white-space: nowrap; }
+.document-items { border-collapse: collapse; table-layout: fixed; width: 100%; }
+.document-items thead { display: table-header-group; }
+.document-items th { background: #e9eef5; border-bottom: 1px solid #94a3b8; color: #334155; font-size: 9px; padding: 4px 5px; text-align: left; text-transform: uppercase; }
+.document-items td { border-bottom: 1px solid #dbe1e8; overflow-wrap: anywhere; padding: 4px 5px; vertical-align: top; }
+.document-items tr { break-inside: avoid; page-break-inside: avoid; }
+.document-items .code { width: 12%; }
+.document-items .description { width: 34%; }
+.document-items .unit { width: 6%; }
+.document-items .quantity { width: 9%; }
+.document-items .money { width: 13%; }
+.numeric { font-variant-numeric: tabular-nums; text-align: right !important; white-space: nowrap; }
+.financial-summary { break-inside: avoid; display: flex; justify-content: flex-end; page-break-inside: avoid; padding-top: 6px; }
+.financial-summary dl { display: grid; gap: 2px 16px; grid-template-columns: auto minmax(85px, auto); margin: 0; min-width: 230px; }
+.financial-summary dt { color: #536174; }
+.financial-summary dd { font-variant-numeric: tabular-nums; margin: 0; text-align: right; }
+.financial-summary .grand { border-top: 1.5px solid #182230; color: #182230; font-size: 14px; font-weight: 800; margin-top: 2px; padding-top: 4px; }
+.document-note { break-inside: avoid; border-top: 1px solid #dbe1e8; margin-top: 7px; page-break-inside: avoid; padding-top: 5px; }
+.document-note h2 { color: #334155; font-size: 10px; margin: 0 0 2px; text-transform: uppercase; }
+.document-note p { margin: 0; white-space: pre-wrap; }
+.document-footer { border-top: 1px solid #dbe1e8; color: #64748b; display: flex; font-size: 8px; gap: 12px; justify-content: space-between; margin-top: 10px; padding-top: 4px; }
+.print-button { background: #075985; border: 0; border-radius: 6px; color: #fff; cursor: pointer; display: block; font: 600 13px Arial, sans-serif; margin: 14px auto; min-height: 38px; padding: 0 18px; }
+.print-button:focus-visible { outline: 3px solid #38bdf8; outline-offset: 2px; }
+@media (max-width: 640px) {
+  body { padding: 0; }
+  .print-document { min-height: 100vh; padding: 14px; }
+  .document-header, .document-footer { align-items: flex-start; }
+  .document-meta { grid-template-columns: 1fr; }
+  .document-items { min-width: 680px; }
+  .print-document { overflow-x: auto; }
+}
+@media print {
+  @page { size: A4 portrait; margin: 8mm 9mm 10mm; }
+  body { background: #fff; font-size: 10.5px; padding: 0; }
+  .print-document { max-width: none; min-height: 0; padding: 0; }
+  .print-button { display: none; }
+  .document-footer { bottom: 0; }
+}

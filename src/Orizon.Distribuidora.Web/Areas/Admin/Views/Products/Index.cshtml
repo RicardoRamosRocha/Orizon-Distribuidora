@@ -8,19 +8,19 @@
     var today = DateOnly.FromDateTime(DateTime.UtcNow);
     var columns = new[]
     {
-        new { Key = "code", Label = "Código", Sort = "code", Width = "132px", Sticky = true },
-        new { Key = "name", Label = "Produto", Sort = "name", Width = "320px", Sticky = true },
-        new { Key = "status", Label = "Status", Sort = "status", Width = "132px", Sticky = false },
-        new { Key = "type", Label = "Tipo", Sort = "type", Width = "140px", Sticky = false },
-        new { Key = "category", Label = "Categoria", Sort = "category", Width = "180px", Sticky = false },
-        new { Key = "brand", Label = "Marca", Sort = "brand", Width = "160px", Sticky = false },
-        new { Key = "unit", Label = "Un.", Sort = "", Width = "90px", Sticky = false },
-        new { Key = "cost", Label = "Custo", Sort = "cost", Width = "128px", Sticky = false },
-        new { Key = "price", Label = "Preço", Sort = "price", Width = "128px", Sticky = false },
-        new { Key = "margin", Label = "Margem", Sort = "margin", Width = "128px", Sticky = false },
-        new { Key = "validity", Label = "Validade", Sort = "", Width = "150px", Sticky = false },
-        new { Key = "stock", Label = "Estoque", Sort = "", Width = "160px", Sticky = false },
-        new { Key = "actions", Label = "Ações", Sort = "", Width = "220px", Sticky = false }
+        new { Key = "code", Label = "Código", Sort = "code", Width = 92, MinWidth = 92, MaxWidth = 92, Sticky = true, Resizable = false },
+        new { Key = "name", Label = "Produto", Sort = "name", Width = 280, MinWidth = 220, MaxWidth = 480, Sticky = false, Resizable = true },
+        new { Key = "status", Label = "Status", Sort = "status", Width = 92, MinWidth = 82, MaxWidth = 116, Sticky = false, Resizable = true },
+        new { Key = "type", Label = "Tipo", Sort = "type", Width = 92, MinWidth = 80, MaxWidth = 144, Sticky = false, Resizable = true },
+        new { Key = "category", Label = "Categoria", Sort = "category", Width = 140, MinWidth = 120, MaxWidth = 240, Sticky = false, Resizable = true },
+        new { Key = "brand", Label = "Marca", Sort = "brand", Width = 120, MinWidth = 100, MaxWidth = 220, Sticky = false, Resizable = true },
+        new { Key = "unit", Label = "Un.", Sort = "", Width = 64, MinWidth = 58, MaxWidth = 84, Sticky = false, Resizable = false },
+        new { Key = "cost", Label = "Custo", Sort = "cost", Width = 112, MinWidth = 104, MaxWidth = 160, Sticky = false, Resizable = true },
+        new { Key = "price", Label = "Preço", Sort = "price", Width = 118, MinWidth = 110, MaxWidth = 168, Sticky = false, Resizable = true },
+        new { Key = "margin", Label = "Margem", Sort = "margin", Width = 88, MinWidth = 82, MaxWidth = 120, Sticky = false, Resizable = true },
+        new { Key = "validity", Label = "Validade", Sort = "", Width = 124, MinWidth = 112, MaxWidth = 172, Sticky = false, Resizable = true },
+        new { Key = "stock", Label = "Estoque", Sort = "", Width = 108, MinWidth = 90, MaxWidth = 180, Sticky = false, Resizable = true },
+        new { Key = "actions", Label = "Ações", Sort = "", Width = 184, MinWidth = 184, MaxWidth = 184, Sticky = false, Resizable = false }
     };
 }
 
@@ -101,7 +101,7 @@
                 </button>
                 <div class="products-column-popover" id="products-column-options" data-column-menu hidden>
                     <strong>Colunas visíveis</strong>
-                    @foreach (var column in columns.Where(column => column.Key != "actions"))
+                    @foreach (var column in columns.Where(column => column.Key != "code" && column.Key != "actions"))
                     {
                         <label>
                             <input type="checkbox" data-column-toggle="@column.Key" checked />
@@ -194,17 +194,22 @@
                     <col class="products-select-col" />
                     @foreach (var column in columns)
                     {
-                        <col data-col="@column.Key" style="width: @column.Width;" />
+                        <col data-col="@column.Key" style="width: @(column.Width)px;" />
                     }
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="products-select-cell products-sticky-select">
+                        <th scope="col" class="products-select-cell products-sticky-select">
                             <input type="checkbox" data-select-all aria-label="Selecionar pagina atual" />
                         </th>
                         @foreach (var column in columns)
                         {
-                            <th data-column="@column.Key" class="@(column.Sticky ? "products-sticky-col" : string.Empty)">
+                            <th scope="col"
+                                data-column="@column.Key"
+                                data-min-width="@column.MinWidth"
+                                data-max-width="@column.MaxWidth"
+                                aria-sort="@(filter.SortBy == column.Sort ? (filter.SortDirection == "desc" ? "descending" : "ascending") : null)"
+                                class="@(column.Sticky ? "products-sticky-col" : string.Empty)">
                                 @if (!string.IsNullOrWhiteSpace(column.Sort))
                                 {
                                     <a asp-action="Index"
@@ -231,7 +236,10 @@
                                 {
                                     <span>@column.Label</span>
                                 }
-                                <span class="products-resizer" data-resizer="@column.Key" aria-hidden="true"></span>
+                                @if (column.Resizable)
+                                {
+                                    <span class="products-resizer" data-resizer="@column.Key" aria-hidden="true"></span>
+                                }
                             </th>
                         }
                     </tr>
@@ -253,8 +261,8 @@
                                 <input type="checkbox" value="@item.Id" data-row-select aria-label="Selecionar @item.Name" />
                             </td>
                             <td data-column="code" class="products-code products-sticky-col">@item.InternalCode</td>
-                            <td data-column="name" class="products-name products-sticky-col">
-                                <span>@item.Name</span>
+                            <td data-column="name" class="products-name">
+                                <span title="@item.Name">@item.Name</span>
                                 @if (!string.IsNullOrWhiteSpace(item.ShortDescription))
                                 {
                                     <small>@item.ShortDescription</small>

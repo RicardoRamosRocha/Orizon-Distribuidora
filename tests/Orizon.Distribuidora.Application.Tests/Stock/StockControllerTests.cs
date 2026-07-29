@@ -87,6 +87,7 @@ public sealed class StockControllerTests
         public Task<StockOperationResult> RegisterPositiveAdjustmentAsync(Guid c, Guid? u, RegisterStockMovementRequest r, CancellationToken t = default) => Op("positive");
         public Task<StockOperationResult> RegisterNegativeAdjustmentAsync(Guid c, Guid? u, RegisterStockMovementRequest r, CancellationToken t = default) => Op("negative");
         public Task<StockOperationResult> RegisterInitialBalanceAsync(Guid c, Guid? u, RegisterStockMovementRequest r, CancellationToken t = default) => Op("initial");
+        public Task<StockOperationResult> RegisterStockIssueBatchAsync(Guid c, Guid? u, RegisterStockIssueBatchRequest r, CancellationToken t = default) => Op("batch");
         public Task<StockBalanceDto?> GetStockBalanceAsync(Guid c, Guid p, Guid w, CancellationToken t = default) => Task.FromResult<StockBalanceDto?>(null);
         public Task<PagedResult<StockBalanceDto>> ListStockBalancesAsync(Guid c, StockBalanceFilter f, CancellationToken t = default) => Task.FromResult(new PagedResult<StockBalanceDto>([], 1, 25, 0));
         public Task<PagedResult<StockMovementDto>> ListStockMovementsAsync(Guid c, StockMovementFilter f, CancellationToken t = default) => Task.FromResult(new PagedResult<StockMovementDto>([], 1, 25, 0));
