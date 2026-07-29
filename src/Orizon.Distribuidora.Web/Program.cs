@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Orizon.Distribuidora.Infrastructure.DependencyInjection;
 using Orizon.Distribuidora.Infrastructure.Identity.Seed;
 using Orizon.Distribuidora.Web.Options;
@@ -6,6 +7,17 @@ using Orizon.Distribuidora.Web.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHealthChecks();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.Configure<ImportacaoOptions>(
     builder.Configuration.GetSection(ImportacaoOptions.SectionName));
 
@@ -16,6 +28,8 @@ builder.Services.AddInfrastructure(
     builder.Configuration);
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -30,6 +44,8 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapControllerRoute(
     name: "areas",
