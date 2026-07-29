@@ -71,7 +71,11 @@ jobs:
       - name: Seed test database
         shell: bash
         run: |
-          dotnet run             --project src/Orizon.Distribuidora.Web             --configuration Release             --no-build > /tmp/orizon-ci-seed.log 2>&1 &
+          dotnet run \
+            --project src/Orizon.Distribuidora.Web \
+            --configuration Release \
+            --no-build \
+            --no-launch-profile > /tmp/orizon-ci-seed.log 2>&1 &
           app_pid=$!
 
           for attempt in {1..30}; do
