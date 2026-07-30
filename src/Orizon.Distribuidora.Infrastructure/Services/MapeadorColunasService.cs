@@ -12,28 +12,80 @@ public sealed class MapeadorColunasService : IMapeadorColunasService
         ArgumentNullException.ThrowIfNull(cabecalhos);
         var resultado = new Dictionary<string, string>();
         var confiancas = new Dictionary<string, double>();
-        var usadas = new HashSet<string>(StringComparer.Ordinal);
+        var conflitos = new Dictionary<string, IReadOnlyList<string>>();
+        var propostas = new List<(CampoImportavel Campo, string Coluna, double Nota)>();
 
-        foreach (var campo in CatalogoCamposProdutoImportacao.Campos)
+        foreach (var campo in CatalogoCamposProdutoImportacao.Campos.Where(campo => campo.AceitaImportacao))
         {
-            var melhor = cabecalhos.Where(x => !usadas.Contains(x))
+            var candidatas = cabecalhos
                 .Select(x => (Coluna: x, Nota: MelhorNota(campo, x)))
-                .OrderByDescending(x => x.Nota).FirstOrDefault();
-            if (melhor.Nota < .72) continue;
-            resultado[campo.Chave] = melhor.Coluna;
-            confiancas[campo.Chave] = melhor.Nota;
-            usadas.Add(melhor.Coluna);
+                .Where(x => x.Nota >= .72)
+                .OrderByDescending(x => x.Nota)
+                .ToList();
+            if (candidatas.Count == 0) continue;
+
+            var melhorNota = candidatas[0].Nota;
+            var melhores = candidatas
+                .Where(x => Math.Abs(x.Nota - melhorNota) < .0001)
+                .Select(x => x.Coluna)
+                .ToList();
+            if (melhores.Count > 1)
+            {
+                conflitos[campo.Chave] = melhores;
+                continue;
+            }
+
+            propostas.Add((campo, melhores[0], melhorNota));
         }
-        return Task.FromResult(new MapeamentoColunasImportacao(resultado, confiancas));
+
+        foreach (var grupo in propostas.GroupBy(x => x.Coluna, StringComparer.Ordinal))
+        {
+            var melhorNota = grupo.Max(x => x.Nota);
+            var melhores = grupo.Where(x => Math.Abs(x.Nota - melhorNota) < .0001).ToList();
+            if (melhores.Count > 1)
+            {
+                foreach (var proposta in melhores)
+                {
+                    conflitos[proposta.Campo.Chave] = [proposta.Coluna];
+                }
+                continue;
+            }
+
+            var melhor = melhores[0];
+            resultado[melhor.Campo.Chave] = melhor.Coluna;
+            confiancas[melhor.Campo.Chave] = melhor.Nota;
+        }
+
+        return Task.FromResult(new MapeamentoColunasImportacao(resultado, confiancas, conflitos));
     }
 
     public static string Normalizar(string valor)
     {
         var decomposed = valor.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder();
+        var ultimoFoiEspaco = false;
         foreach (var c in decomposed)
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark && char.IsLetterOrDigit(c)) builder.Append(c);
-        return builder.ToString();
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsWhiteSpace(c))
+            {
+                if (!ultimoFoiEspaco)
+                {
+                    builder.Append(' ');
+                    ultimoFoiEspaco = true;
+                }
+                continue;
+            }
+
+            builder.Append(c);
+            ultimoFoiEspaco = false;
+        }
+
+        return builder.ToString().Trim();
     }
 
     private static double MelhorNota(CampoImportavel campo, string coluna) =>

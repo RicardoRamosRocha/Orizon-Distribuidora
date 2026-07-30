@@ -6,7 +6,7 @@ namespace Orizon.Distribuidora.Application.Tests.Importacoes;
 public sealed class ValidadorDadosImportacaoServiceTests
 {
     private readonly ValidadorDadosImportacaoService service = new();
-    private static readonly MapeamentoColunasImportacao Mapping = new(new Dictionary<string,string>{{"codigo","Código"},{"descricao","Descrição"},{"unidade","Un"},{"precoCompra","Custo"},{"precoVenda","Venda"},{"estoqueInicial","Estoque"},{"tipoProduto","Tipo"},{"codigoBarras","Barras"}});
+    private static readonly MapeamentoColunasImportacao Mapping = new(new Dictionary<string,string>{{"codigo","Código"},{"descricao","Descrição"},{"unidade","Un"},{"precoCompra","Custo"},{"precoVenda","Venda"},{"estoqueInicial","Estoque"},{"tipoProduto","Tipo"},{"codigoBarras","Barras"},{"marca","Marca"},{"parceiroCnpj","Parceiro"}});
 
     [Fact] public async Task Linha_valida_e_novo_produto(){var r=await Validate(Row(2,"A1","Produto"));Assert.True(r.Linhas[0].PodeImportar);Assert.Equal(TipoOperacaoImportacao.Inserir,r.Linhas[0].Operacao);}
     [Fact] public async Task Codigo_obrigatorio(){var r=await Validate(Row(2," ","Produto"));AssertCode(r,"IMP_CAMPO_OBRIGATORIO");}
@@ -16,6 +16,7 @@ public sealed class ValidadorDadosImportacaoServiceTests
     [Fact] public async Task Decimal_internacional(){var r=await Validate(Row(2,"A1","Produto",venda:"1234.56"));Assert.Equal(1234.56m,r.Linhas[0].ValoresConvertidos["precoVenda"]);}
     [Fact] public async Task Numero_invalido(){var r=await Validate(Row(2,"A1","Produto",venda:"abc"));AssertCode(r,"IMP_NUMERO_INVALIDO");}
     [Fact] public async Task Valor_negativo(){var r=await Validate(Row(2,"A1","Produto",venda:"-1"));AssertCode(r,"IMP_VALOR_NEGATIVO");}
+    [Fact] public async Task Estoque_inicial_negativo(){var r=await Validate(Row(2,"A1","Produto",estoque:"-1"));Assert.Contains(r.Linhas[0].Erros,x=>x.Campo=="estoqueInicial"&&x.Codigo=="IMP_VALOR_NEGATIVO");}
     [Fact] public async Task Terceiro_com_estoque(){var r=await Validate(Row(2,"A1","Produto",estoque:"2",tipo:"terceiro"));AssertCode(r,"IMP_TERCEIRO_COM_ESTOQUE");}
     [Fact] public async Task Produto_proprio_valido(){var r=await Validate(Row(2,"A1","Produto",estoque:"2",tipo:"próprio"));Assert.True(r.Linhas[0].PodeImportar);}
     [Fact] public async Task Unidade_inexistente(){var r=await Validate(Row(2,"A1","Produto",unidade:"CX"));AssertCode(r,"IMP_CADASTRO_INEXISTENTE");}
@@ -24,10 +25,22 @@ public sealed class ValidadorDadosImportacaoServiceTests
     [Fact] public async Task Produto_existente_com_alteracao(){var existing=Product("A1","Antigo");var r=await Validate([Row(2,"A1","Novo")],[existing]);Assert.Equal(TipoOperacaoImportacao.Atualizar,r.Linhas[0].Operacao);Assert.NotEmpty(r.Linhas[0].Alteracoes);}
     [Fact] public async Task Produto_existente_sem_alteracao_ignorado(){var existing=Product("A1","Produto");var r=await Validate([Row(2,"A1","Produto")],[existing]);Assert.Equal(TipoOperacaoImportacao.Ignorar,r.Linhas[0].Operacao);}
     [Fact] public async Task Importacao_parcial_permite_validas(){var r=await Validate(Row(2,"A1","Ok"),Row(3,"","Erro"));Assert.True(r.PodeImportar);Assert.Equal(1,r.QuantidadeValida);}
+    [Fact] public async Task Unidade_e_preco_venda_sao_obrigatorios(){var r=await Validate(Row(2,"A1","Produto",unidade:"",venda:null));Assert.Equal(2,r.Linhas[0].Erros.Count(x=>x.Codigo=="IMP_CAMPO_OBRIGATORIO"));}
+    [Fact] public async Task Relacionamento_ambiguo_bloqueia_linha(){var refs=References(marcas:[new(Guid.NewGuid(),null,"Marca X"),new(Guid.NewGuid(),null,"marca x")]);var r=await ValidateWithRefs(Row(2,"A1","Produto",marca:"Marca X"),refs);AssertCode(r,"IMP_CADASTRO_AMBIGUO");}
+    [Fact] public async Task Parceiro_terceiro_resolvido_por_cnpj(){var partner=Guid.NewGuid();var refs=References(parceiros:[new(partner,null,"Parceiro","12345678000195")]);var r=await ValidateWithRefs(Row(2,"A1","Produto",tipo:"terceiro",parceiro:"12.345.678/0001-95"),refs);Assert.Equal(partner,r.Linhas[0].ValoresConvertidos["parceiroId"]);Assert.DoesNotContain(r.Linhas[0].Erros,x=>x.Codigo=="IMP_PARCEIRO_OBRIGATORIO");}
+    [Fact] public async Task Produto_terceiro_sem_parceiro_e_bloqueado(){var r=await Validate(Row(2,"A1","Produto",tipo:"terceiro"));AssertCode(r,"IMP_PARCEIRO_OBRIGATORIO");}
 
     private Task<ResultadoValidacaoImportacao> Validate(params LinhaPlanilhaImportada[] rows)=>Validate(rows,[]);
-    private Task<ResultadoValidacaoImportacao> Validate(IReadOnlyList<LinhaPlanilhaImportada> rows,IReadOnlyList<ProdutoExistenteImportacao> existing)=>service.ValidarAsync(new(Guid.NewGuid(),Guid.NewGuid(),null,rows,Mapping,new(),existing,new Dictionary<string,Guid>{{"un",Guid.Parse("11111111-1111-1111-1111-111111111111")}}));
-    private static LinhaPlanilhaImportada Row(int line,string code,string name,string unidade="UN",string? custo=null,string? venda="10",string? estoque=null,string? tipo="próprio",string? barras=null)=>new(line,new Dictionary<string,string?>{{"Código",code},{"Descrição",name},{"Un",unidade},{"Custo",custo},{"Venda",venda},{"Estoque",estoque},{"Tipo",tipo},{"Barras",barras}});
+    private Task<ResultadoValidacaoImportacao> Validate(IReadOnlyList<LinhaPlanilhaImportada> rows,IReadOnlyList<ProdutoExistenteImportacao> existing)
+    {
+        var warehouse = Guid.NewGuid(); var location = Guid.NewGuid();
+        var references = References();
+        return service.ValidarAsync(new(Guid.NewGuid(),Guid.NewGuid(),null,rows,Mapping,
+            new(DepositoId: warehouse, LocalInternoId: location),existing,references));
+    }
+    private Task<ResultadoValidacaoImportacao> ValidateWithRefs(LinhaPlanilhaImportada row,ReferenciasProdutoImportacao refs)=>service.ValidarAsync(new(Guid.NewGuid(),Guid.NewGuid(),null,[row],Mapping,new(DepositoId:Guid.NewGuid(),LocalInternoId:Guid.NewGuid()),[],refs));
+    private static ReferenciasProdutoImportacao References(IReadOnlyList<ReferenciaImportacao>? marcas=null,IReadOnlyList<ReferenciaImportacao>? parceiros=null)=>new([new(Guid.Parse("11111111-1111-1111-1111-111111111111"),"UN","Unidade")],marcas??[],[],[],[],[],parceiros??[],true,true);
+    private static LinhaPlanilhaImportada Row(int line,string code,string name,string unidade="UN",string? custo=null,string? venda="10",string? estoque=null,string? tipo="próprio",string? barras=null,string? marca=null,string? parceiro=null)=>new(line,new Dictionary<string,string?>{{"Código",code},{"Descrição",name},{"Un",unidade},{"Custo",custo},{"Venda",venda},{"Estoque",estoque},{"Tipo",tipo},{"Barras",barras},{"Marca",marca},{"Parceiro",parceiro}});
     private static ProdutoExistenteImportacao Product(string code,string name)=>new(Guid.NewGuid(),code,name,null,0,10,Guid.Parse("11111111-1111-1111-1111-111111111111"),true);
     private static void AssertCode(ResultadoValidacaoImportacao r,string code)=>Assert.Contains(r.Linhas.SelectMany(x=>x.Erros),x=>x.Codigo==code);
 }

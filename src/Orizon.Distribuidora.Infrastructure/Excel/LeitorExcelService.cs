@@ -1,12 +1,13 @@
 using ClosedXML.Excel;
 using Orizon.Distribuidora.Application.Importacoes;
 using Orizon.Distribuidora.Application.Interfaces;
+using Orizon.Distribuidora.Infrastructure.Services;
 
 namespace Orizon.Distribuidora.Infrastructure.Excel;
 
 public sealed class LeitorExcelService : ILeitorExcelService
 {
-    private const int MaxSampleRows = 10_000;
+    public const int MaxDataRows = 10_000;
 
     public Task<PlanilhaImportada> LerAsync(
         ArquivoImportacaoExcel arquivo,
@@ -31,7 +32,7 @@ public sealed class LeitorExcelService : ILeitorExcelService
                 throw new ImportacaoExcelException("O arquivo Excel não possui planilhas.");
             }
 
-            var sampleSize = Math.Clamp(tamanhoAmostra, 0, MaxSampleRows);
+            var sampleSize = Math.Clamp(tamanhoAmostra, 0, MaxDataRows);
             var abas = new List<AbaPlanilhaImportada>();
 
             foreach (var worksheet in worksheets)
@@ -89,6 +90,17 @@ public sealed class LeitorExcelService : ILeitorExcelService
             throw new ImportacaoExcelException($"A planilha '{worksheet.Name}' não possui cabeçalhos válidos.");
         }
 
+        var duplicatedHeaders = headers
+            .GroupBy(MapeadorColunasService.Normalizar, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+        if (duplicatedHeaders.Count > 0)
+        {
+            throw new ImportacaoExcelException(
+                $"A planilha '{worksheet.Name}' possui cabeçalhos duplicados: {string.Join(", ", duplicatedHeaders)}. Renomeie as colunas repetidas.");
+        }
+
         var sampleRows = new List<LinhaPlanilhaImportada>();
         var dataRowCount = 0;
 
@@ -100,6 +112,11 @@ public sealed class LeitorExcelService : ILeitorExcelService
             }
 
             dataRowCount++;
+            if (dataRowCount > MaxDataRows)
+            {
+                throw new ImportacaoExcelException(
+                    $"A planilha '{worksheet.Name}' possui mais de {MaxDataRows:N0} linhas de dados. O limite permitido é {MaxDataRows:N0}; divida o arquivo e tente novamente.");
+            }
 
             if (sampleRows.Count < sampleSize)
             {
@@ -107,10 +124,7 @@ public sealed class LeitorExcelService : ILeitorExcelService
             }
         }
 
-        if (dataRowCount == 0)
-        {
-            throw new ImportacaoExcelException($"A planilha '{worksheet.Name}' não possui linhas de dados.");
-        }
+        if (dataRowCount == 0) return null;
 
         return new AbaPlanilhaImportada(
             worksheet.Name,
@@ -126,7 +140,7 @@ public sealed class LeitorExcelService : ILeitorExcelService
 
         for (var column = firstColumn; column <= lastColumn; column++)
         {
-            var value = headerRow.Cell(column).GetFormattedString().Trim();
+            var value = headerRow.Cell(column).GetFormattedString();
 
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -159,7 +173,7 @@ public sealed class LeitorExcelService : ILeitorExcelService
         IReadOnlyList<string> headers,
         int firstColumn)
     {
-        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal);
 
         for (var index = 0; index < headers.Count; index++)
         {

@@ -127,7 +127,93 @@ public sealed class LeitorExcelServiceTests
             new ArquivoImportacaoExcel(stream, "produtos.xlsx", stream.Length));
 
         var exception = await Assert.ThrowsAsync<ImportacaoExcelException>(action);
-        Assert.Contains("não possui linhas de dados", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("planilha com dados válidos", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LerAsync_DeveAceitarExatamenteDezMilLinhas()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Produtos");
+            sheet.Cell(1, 1).Value = "Código";
+            for (var line = 2; line <= 10_001; line++) sheet.Cell(line, 1).Value = $"P{line}";
+        });
+
+        var result = await new LeitorExcelService().LerAsync(
+            new ArquivoImportacaoExcel(stream, "produtos.xlsx", stream.Length), tamanhoAmostra: 10_000);
+
+        Assert.Equal(10_000, result.AbaAtual!.QuantidadeLinhas);
+        Assert.Equal(10_000, result.Linhas.Count);
+    }
+
+    [Fact]
+    public async Task LerAsync_DeveRejeitarDezMilEUmaLinhasSemTruncar()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Produtos");
+            sheet.Cell(1, 1).Value = "Código";
+            for (var line = 2; line <= 10_002; line++) sheet.Cell(line, 1).Value = $"P{line}";
+        });
+
+        var exception = await Assert.ThrowsAsync<ImportacaoExcelException>(() =>
+            new LeitorExcelService().LerAsync(new ArquivoImportacaoExcel(stream, "produtos.xlsx", stream.Length)));
+
+        Assert.Contains("10.000", exception.Message);
+        Assert.Contains("divida", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LerAsync_DeveBloquearCabecalhosDuplicados()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Produtos");
+            sheet.Cell(1, 1).Value = "Código";
+            sheet.Cell(1, 2).Value = "código";
+            sheet.Cell(2, 1).Value = "P1";
+        });
+
+        var exception = await Assert.ThrowsAsync<ImportacaoExcelException>(() =>
+            new LeitorExcelService().LerAsync(new ArquivoImportacaoExcel(stream, "produtos.xlsx", stream.Length)));
+
+        Assert.Contains("cabeçalhos duplicados", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LerAsync_PreservaEspacosAcentosECaixaDoCabecalhoOriginal()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Produtos");
+            sheet.Cell(1, 1).Value = " Código do Produto ";
+            sheet.Cell(1, 2).Value = "PREÇO de Venda";
+            sheet.Cell(2, 1).Value = "P1";
+            sheet.Cell(2, 2).Value = 10;
+        });
+
+        var result = await ReadAsync(stream);
+
+        Assert.Equal([" Código do Produto ", "PREÇO de Venda"], result.Cabecalhos);
+        Assert.Equal("P1", result.Linhas[0].Valores[" Código do Produto "]);
+    }
+
+    [Fact]
+    public async Task LerAsync_DeveIgnorarAbaSomenteComCabecalhoQuandoOutraForValida()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            workbook.Worksheets.Add("Instruções").Cell(1, 1).Value = "Leia antes";
+            var sheet = workbook.Worksheets.Add("Produtos");
+            sheet.Cell(1, 1).Value = "Código";
+            sheet.Cell(2, 1).Value = "P1";
+        });
+
+        var result = await ReadAsync(stream);
+
+        Assert.Single(result.Abas);
+        Assert.Equal("Produtos", result.AbaSelecionada);
     }
 
     private static async Task<PlanilhaImportada> ReadAsync(Stream stream, string? sheetName = null)

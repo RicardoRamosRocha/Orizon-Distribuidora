@@ -114,6 +114,25 @@ public sealed class StockBalanceTests
         Assert.NotEqual(token, balance.ConcurrencyToken);
     }
 
+    [Fact]
+    public void ImportacaoEstoqueInicial_CreatesAuditableIdempotentInboundMovement()
+    {
+        var balance = Create();
+        var historyId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var movement = balance.Apply(StockMovementType.InitialBalance, 8, "ImportaÃ§Ã£o â€” estoque inicial",
+            internalLocationId: Guid.NewGuid(), referenceType: "ImportacaoHistorico",
+            referenceId: historyId.ToString(), operationKey: $"importacao:{historyId}:linha:2", createdBy: userId);
+
+        Assert.Equal(StockMovementDirection.Inbound, movement.Direction);
+        Assert.Equal("ImportacaoHistorico", movement.ReferenceType);
+        Assert.Equal(historyId.ToString(), movement.ReferenceId);
+        Assert.Equal($"importacao:{historyId}:linha:2", movement.OperationKey);
+        Assert.Equal(userId, movement.CreatedBy);
+        Assert.Equal(8, balance.QuantityOnHand);
+    }
+
     [Theory]
     [InlineData(StockMovementType.TransferIn, StockMovementDirection.Inbound)]
     [InlineData(StockMovementType.TransferOut, StockMovementDirection.Outbound)]

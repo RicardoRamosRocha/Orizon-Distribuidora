@@ -79,6 +79,12 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
 
     public IReadOnlyCollection<ImportacaoErro> Erros => erros.AsReadOnly();
 
+    public void AssociarModelo(Guid modeloImportacaoId)
+    {
+        if (modeloImportacaoId == Guid.Empty) throw new ArgumentException("O modelo é obrigatório.", nameof(modeloImportacaoId));
+        ModeloImportacaoId = modeloImportacaoId;
+    }
+
     public void Iniciar()
     {
         Status = StatusImportacao.EmProcessamento;

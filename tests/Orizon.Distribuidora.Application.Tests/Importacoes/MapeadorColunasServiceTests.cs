@@ -27,6 +27,38 @@ public sealed class MapeadorColunasServiceTests
     }
 
     [Fact]
+    public async Task Mapeia_caminho_feliz_preservando_cabecalhos_originais()
+    {
+        var headers = new[] { " Código ", "Descrição", "Unidade", "Preço de venda" };
+
+        var result = await service.MapearAsync(headers);
+
+        Assert.Equal(" Código ", result.Colunas["codigo"]);
+        Assert.Equal("Descrição", result.Colunas["descricao"]);
+        Assert.Equal("Unidade", result.Colunas["unidade"]);
+        Assert.Equal("Preço de venda", result.Colunas["precoVenda"]);
+    }
+
+    [Fact]
+    public async Task Nao_mapeia_automaticamente_quando_duas_colunas_sao_ambiguas()
+    {
+        var result = await service.MapearAsync(["Código", "SKU", "Descrição", "Unidade", "Preço de venda"]);
+
+        Assert.False(result.Colunas.ContainsKey("codigo"));
+        Assert.Equal(["Código", "SKU"], result.Conflitos!["codigo"]);
+    }
+
+    [Fact]
+    public void Canonicaliza_chaves_do_catalogo_sem_perder_o_nome_da_coluna()
+    {
+        var result = MapeamentoColunasImportacao.Canonicalizar(
+            new Dictionary<string, string> { ["CODIGO"] = " Código original " });
+
+        Assert.Equal(" Código original ", result["codigo"]);
+        Assert.False(result.ContainsKey("CODIGO"));
+    }
+
+    [Fact]
     public void Valida_obrigatorios_coluna_inexistente_e_repetida()
     {
         var result = ValidadorMapeamentoColunas.Validar(new Dictionary<string,string>{{"codigo","A"},{"descricao","A"},{"unidade","X"},{"precoVenda","P"}}, ["A","P"]);
@@ -38,8 +70,10 @@ public sealed class MapeadorColunasServiceTests
     [Fact]
     public void Catalogo_define_metadados_oficiais()
     {
-        Assert.Equal(23, CatalogoCamposProdutoImportacao.Campos.Count);
-        Assert.All(CatalogoCamposProdutoImportacao.Campos, x => Assert.True(x.AceitaImportacao));
+        Assert.Equal(25, CatalogoCamposProdutoImportacao.Campos.Count);
+        Assert.Equal(21, CatalogoCamposProdutoImportacao.Campos.Count(x => x.AceitaImportacao));
+        Assert.All(CatalogoCamposProdutoImportacao.Campos, x => Assert.False(string.IsNullOrWhiteSpace(x.Destino)));
+        Assert.All(CatalogoCamposProdutoImportacao.Campos.Where(x => !x.AceitaImportacao), x => Assert.False(string.IsNullOrWhiteSpace(x.MotivoIndisponibilidade)));
         Assert.Contains(CatalogoCamposProdutoImportacao.Campos, x => x.Chave == "codigo" && x.Obrigatorio);
     }
 

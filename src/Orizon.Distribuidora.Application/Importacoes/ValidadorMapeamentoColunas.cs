@@ -5,7 +5,16 @@ public static class ValidadorMapeamentoColunas
     public static ResultadoValidacaoMapeamento Validar(IReadOnlyDictionary<string, string> mapeamentos, IReadOnlyList<string> cabecalhos, IReadOnlyList<IReadOnlyDictionary<string, string?>>? amostra = null)
     {
         var erros = new List<ErroMapeamento>();
+        mapeamentos = MapeamentoColunasImportacao.Canonicalizar(mapeamentos);
         var campos = CatalogoCamposProdutoImportacao.Campos;
+        foreach (var mapping in mapeamentos.Where(x => !string.IsNullOrWhiteSpace(x.Value)))
+        {
+            var campo = campos.FirstOrDefault(x => string.Equals(x.Chave, mapping.Key, StringComparison.OrdinalIgnoreCase));
+            if (campo is null)
+                erros.Add(new(mapping.Key, $"O campo '{mapping.Key}' não pertence ao catálogo de importação."));
+            else if (!campo.AceitaImportacao)
+                erros.Add(new(mapping.Key, $"{campo.Nome} está temporariamente indisponível: {campo.MotivoIndisponibilidade}"));
+        }
         foreach (var campo in campos.Where(x => x.Obrigatorio && (!mapeamentos.TryGetValue(x.Chave, out var coluna) || string.IsNullOrWhiteSpace(coluna))))
             erros.Add(new(campo.Chave, $"O campo obrigatório {campo.Nome} não foi mapeado."));
 

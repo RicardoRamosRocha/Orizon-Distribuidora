@@ -24,7 +24,7 @@ public sealed class ImportacaoUploadValidatorTests
     public void Validate_DeveRejeitarExtensaoInvalida()
     {
         var validator = CreateValidator();
-        using var stream = new MemoryStream([1, 2, 3]);
+        using var stream = new MemoryStream([0x50, 0x4B, 0x03, 0x04]);
         var file = new FormFile(stream, 0, stream.Length, "arquivo", "produtos.csv");
 
         var result = validator.Validate(file);
@@ -37,13 +37,21 @@ public sealed class ImportacaoUploadValidatorTests
     public void Validate_DeveAceitarXlsxDentroDoLimite()
     {
         var validator = CreateValidator();
-        using var stream = new MemoryStream([1, 2, 3]);
+        using var stream = new MemoryStream([0x50, 0x4B, 0x03, 0x04]);
         var file = new FormFile(stream, 0, stream.Length, "arquivo", @"C:\fakepath\produtos.xlsx");
 
         var result = validator.Validate(file);
 
         Assert.True(result.IsValid);
         Assert.Equal("produtos.xlsx", result.SanitizedFileName);
+    }
+
+    [Fact]
+    public void Validate_DeveRejeitarXlsxSemAssinaturaOpenXml()
+    {
+        var validator = CreateValidator(); using var stream = new MemoryStream([1, 2, 3, 4]);
+        var result = validator.Validate(new FormFile(stream, 0, stream.Length, "arquivo", "produtos.xlsx"));
+        Assert.False(result.IsValid); Assert.Contains("assinatura", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ImportacaoUploadValidator CreateValidator()
