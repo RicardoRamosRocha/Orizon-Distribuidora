@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="docs/images/Orizon.png" width="170"/>
+<img src="docs/images/<img width="1536" height="1024" alt="Orizon" src="https://github.com/user-attachments/assets/a1a8dc7c-3e0d-44eb-9f2b-c4992bbe0713" />
+" width="170"/>
 
 # 🚀 Orizon Distribuidora
 
