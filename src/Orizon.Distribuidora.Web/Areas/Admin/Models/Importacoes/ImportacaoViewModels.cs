@@ -1,6 +1,7 @@
 using Orizon.Distribuidora.Domain.Enums;
 using Orizon.Distribuidora.Application.Importacoes;
 using Orizon.Distribuidora.Application.Interfaces;
+using Orizon.Distribuidora.Application.Stock;
 
 namespace Orizon.Distribuidora.Web.Areas.Admin.Models.Importacoes;
 
@@ -102,8 +103,13 @@ public sealed class ImportacaoMapeamentoViewModel
     public IReadOnlyList<CampoImportavel> Campos { get; set; } = [];
     public IReadOnlyDictionary<string, string> Mapeamentos { get; set; } = new Dictionary<string, string>();
     public IReadOnlyDictionary<string, double> Confiancas { get; set; } = new Dictionary<string, double>();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> Conflitos { get; set; } =
+        new Dictionary<string, IReadOnlyList<string>>();
+    public IReadOnlyList<ErroMapeamento> ErrosMapeamento { get; set; } = [];
     public IReadOnlyList<ModeloImportacaoDto> Modelos { get; set; } = [];
     public Guid? ModeloCarregadoId { get; set; }
+    public IReadOnlyList<StockOptionDto> Depositos { get; set; } = [];
+    public IReadOnlyList<StockOptionDto> LocaisInternos { get; set; } = [];
 }
 
 public sealed class SalvarModeloImportacaoRequest
@@ -120,7 +126,10 @@ public sealed class ExecutarValidacaoImportacaoRequest
     public Guid ImportacaoId { get; set; }
     public string TokenArquivo { get; set; } = string.Empty;
     public string? AbaSelecionada { get; set; }
-    public string MapeamentoJson { get; set; } = "{}";
+    public Dictionary<string, string> Mapeamentos { get; set; } = [];
+    public Guid? ModeloImportacaoId { get; set; }
+    public Guid? DepositoId { get; set; }
+    public Guid? LocalInternoId { get; set; }
     public bool InserirNovos { get; set; } = true;
     public bool AtualizarExistentes { get; set; } = true;
     public bool IgnorarVaziosAtualizacao { get; set; } = true;
@@ -136,6 +145,7 @@ public sealed class ImportacaoValidacaoViewModel
 {
     public Guid ImportacaoId { get; set; }
     public string NomeArquivo { get; set; } = string.Empty;
+    public string? TokenArquivo { get; set; }
     public string? AbaSelecionada { get; set; }
     public ResultadoValidacaoImportacao Resultado { get; set; } = ResultadoValidacaoImportacao.Sucesso;
     public IReadOnlyList<ResultadoValidacaoLinha> Linhas { get; set; } = [];
@@ -144,6 +154,8 @@ public sealed class ImportacaoValidacaoViewModel
     public string? Filtro { get; set; }
     public string? Busca { get; set; }
     public ExecutarValidacaoImportacaoRequest Request { get; set; } = new();
+    public IReadOnlyDictionary<string, string> Mapeamentos { get; set; } =
+        new Dictionary<string, string>();
 }
 public sealed class ImportacaoResultadoViewModel
 {

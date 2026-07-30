@@ -9,6 +9,7 @@ public sealed class ImportacaoOptions
     public string[] ExtensoesPermitidas { get; set; } = [];
 
     public int TamanhoAmostraPreview { get; set; } = 10;
+    public int ExpiracaoArquivoTemporarioMinutos { get; set; } = 120;
 
     public long TamanhoMaximoArquivoBytes =>
         Math.Max(1, TamanhoMaximoArquivoMB) * 1024L * 1024L;

@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Orizon.Distribuidora.Application.Importacoes;
 using Orizon.Distribuidora.Application.Interfaces;
+using Orizon.Distribuidora.Application.Stock;
 using Orizon.Distribuidora.Domain.Enums;
 using Orizon.Distribuidora.Infrastructure.Identity;
 using Orizon.Distribuidora.Web.Areas.Admin.Models.Importacoes;
 using Orizon.Distribuidora.Web.Options;
 using Orizon.Distribuidora.Web.Services;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace Orizon.Distribuidora.Web.Areas.Admin.Controllers;
 
@@ -30,6 +30,8 @@ public sealed class ImportacaoController : Controller
     private readonly IExecutorImportacaoProdutosService executorImportacaoProdutosService;
     private readonly IExportacaoImportacaoService exportacaoImportacaoService;
     private readonly IRollbackImportacaoService rollbackImportacaoService;
+    private readonly ImportacaoArquivoTemporarioService arquivoTemporarioService;
+    private readonly IStockService stockService;
 
     public ImportacaoController(
         IHistoricoImportacaoService historicoImportacaoService,
@@ -43,7 +45,9 @@ public sealed class ImportacaoController : Controller
         IContextoValidacaoImportacaoService contextoValidacaoImportacaoService,
         IExecutorImportacaoProdutosService executorImportacaoProdutosService,
         IExportacaoImportacaoService exportacaoImportacaoService,
-        IRollbackImportacaoService rollbackImportacaoService)
+        IRollbackImportacaoService rollbackImportacaoService,
+        ImportacaoArquivoTemporarioService arquivoTemporarioService,
+        IStockService stockService)
     {
         this.historicoImportacaoService = historicoImportacaoService;
         this.leitorExcelService = leitorExcelService;
@@ -57,6 +61,8 @@ public sealed class ImportacaoController : Controller
         this.executorImportacaoProdutosService = executorImportacaoProdutosService;
         this.exportacaoImportacaoService = exportacaoImportacaoService;
         this.rollbackImportacaoService = rollbackImportacaoService;
+        this.arquivoTemporarioService = arquivoTemporarioService;
+        this.stockService = stockService;
     }
 
     [HttpGet("")]
@@ -108,19 +114,9 @@ public sealed class ImportacaoController : Controller
 
         var fileName = validation.SanitizedFileName;
         var uploadedFile = arquivo!;
-        var token = Guid.NewGuid().ToString("N");
-        var temporaryPath = GetTemporaryPath(token);
-
         try
         {
-            Directory.CreateDirectory(GetTemporaryDirectory());
-
-            await using (var output = System.IO.File.Create(temporaryPath))
-            {
-                await uploadedFile.CopyToAsync(output, cancellationToken);
-            }
-
-            await using (var input = System.IO.File.OpenRead(temporaryPath))
+            await using (var input = uploadedFile.OpenReadStream())
             {
                 var leitura = await leitorExcelService.LerAsync(
                     new ArquivoImportacaoExcel(input, fileName, uploadedFile.Length),
@@ -139,24 +135,23 @@ public sealed class ImportacaoController : Controller
                 new ArquivoImportacaoExcel(Stream.Null, fileName, uploadedFile.Length),
                 GetCurrentUserId(),
                 cancellationToken);
+            var temporary = await arquivoTemporarioService.SalvarAsync(uploadedFile, historico.Id, companyId, GetCurrentUserId(), cancellationToken);
 
             return RedirectToAction(
                 nameof(Preview),
                 new
                 {
                     id = historico.Id,
-                    token
+                    token = temporary.Token
                 });
         }
         catch (ImportacaoExcelException exception)
         {
-            DeleteTemporaryFile(temporaryPath);
             ModelState.AddModelError(nameof(arquivo), exception.Message);
             return View(uploadModel);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            DeleteTemporaryFile(temporaryPath);
             ModelState.AddModelError(nameof(arquivo), "Não foi possível preparar o arquivo para leitura. Tente novamente.");
             return View(uploadModel);
         }
@@ -183,9 +178,8 @@ public sealed class ImportacaoController : Controller
             return NotFound();
         }
 
-        var temporaryPath = GetTemporaryPath(token);
-
-        if (!System.IO.File.Exists(temporaryPath))
+        var temporary = await arquivoTemporarioService.ObterAsync(token, id, companyId, GetCurrentUserId(), cancellationToken);
+        if (temporary is null)
         {
             TempData["Error"] = "O arquivo temporário não está mais disponível. Envie a planilha novamente.";
             return RedirectToAction(nameof(Upload));
@@ -193,7 +187,7 @@ public sealed class ImportacaoController : Controller
 
         try
         {
-            await using var input = System.IO.File.OpenRead(temporaryPath);
+            await using var input = System.IO.File.OpenRead(temporary.Caminho);
             var leitura = await leitorExcelService.LerAsync(
                 new ArquivoImportacaoExcel(input, historico.NomeArquivo, historico.TamanhoArquivoBytes),
                 aba,
@@ -211,12 +205,42 @@ public sealed class ImportacaoController : Controller
 
     [HttpPost("Executar")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Executar(Guid id,CancellationToken cancellationToken)
-    {try{var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);await executorImportacaoProdutosService.ExecutarAsync(id,companyId,GetCurrentUserId(),cancellationToken);return RedirectToAction(nameof(Resultado),new{id});}catch(ImportacaoExecucaoException ex){TempData["Error"]=ex.Message;return RedirectToAction(nameof(Resultado),new{id});}}
+    public async Task<IActionResult> Executar(Guid id, string? token, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+            await executorImportacaoProdutosService.ExecutarAsync(id, companyId, GetCurrentUserId(), cancellationToken);
+            if (!string.IsNullOrWhiteSpace(token) &&
+                await arquivoTemporarioService.ObterAsync(token, id, companyId, GetCurrentUserId(), cancellationToken) is not null)
+            {
+                arquivoTemporarioService.Excluir(token);
+            }
+            return RedirectToAction(nameof(Resultado), new { id });
+        }
+        catch (ImportacaoExecucaoException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Resultado), new { id });
+        }
+    }
+
+    [HttpPost("Cancelar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancelar(Guid id, string token, CancellationToken cancellationToken)
+    {
+        var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
+        var temporary = await arquivoTemporarioService.ObterAsync(token, id, companyId, GetCurrentUserId(), cancellationToken);
+        if (temporary is null) return RedirectToAction(nameof(Upload));
+        await historicoImportacaoService.CancelarAsync(companyId, id, GetCurrentUserId(), cancellationToken);
+        arquivoTemporarioService.Excluir(token);
+        TempData["Success"] = "ImportaÃ§Ã£o cancelada e arquivo temporÃ¡rio removido.";
+        return RedirectToAction(nameof(Historico));
+    }
 
     [HttpGet("Resultado")]
     public async Task<IActionResult> Resultado(Guid id,string? filtro,string? busca,int pagina=1,CancellationToken cancellationToken=default)
-    {var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var result=await executorImportacaoProdutosService.ObterResultadoAsync(id,companyId,cancellationToken);if(result is null)return NotFound();IEnumerable<ResultadoExecucaoItem> query=result.Itens;query=filtro switch{"inseridos"=>query.Where(x=>x.Status==StatusLinhaImportacao.Inserida),"atualizados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Atualizada),"semAlteracao"=>query.Where(x=>x.Status==StatusLinhaImportacao.SemAlteracao),"ignorados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Ignorada),"bloqueados"=>query.Where(x=>x.Status==StatusLinhaImportacao.Bloqueada),"falhas"=>query.Where(x=>x.Status==StatusLinhaImportacao.Falhou),_=>query};if(!string.IsNullOrWhiteSpace(busca))query=query.Where(x=>x.Linha.ToString()==busca||(x.Codigo?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false)||(x.Mensagem?.Contains(busca,StringComparison.OrdinalIgnoreCase)??false));const int size=50;var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)size));pagina=Math.Clamp(pagina,1,pages);return View(new ImportacaoResultadoViewModel{Resultado=result,Itens=query.Skip((pagina-1)*size).Take(size).ToList(),Pagina=pagina,TotalPaginas=pages,Filtro=filtro,Busca=busca});}
+    {var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var page=await executorImportacaoProdutosService.ObterResultadoPaginaAsync(id,companyId,filtro,busca,pagina,50,cancellationToken);if(page is null)return NotFound();return View(new ImportacaoResultadoViewModel{Resultado=page.Resultado,Itens=page.Itens,Pagina=page.Pagina,TotalPaginas=page.TotalPaginas,Filtro=filtro,Busca=busca});}
 
     [HttpGet("ExportarExcel")]
     public async Task<IActionResult> ExportarExcel(Guid id,FiltroExportacaoImportacao filtro=FiltroExportacaoImportacao.Todos,CancellationToken cancellationToken=default)
@@ -232,26 +256,52 @@ public sealed class ImportacaoController : Controller
         if (!IsValidToken(token)) return RedirectToAction(nameof(Upload));
         var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
         var historico = await historicoImportacaoService.ObterAsync(companyId, id, cancellationToken);
-        var path = GetTemporaryPath(token);
-        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
-        await using var input = System.IO.File.OpenRead(path);
+        var temporary = await arquivoTemporarioService.ObterAsync(token, id, companyId, GetCurrentUserId(), cancellationToken);
+        if (historico is null || temporary is null) return RedirectToAction(nameof(Upload));
+        await using var input = System.IO.File.OpenRead(temporary.Caminho);
         var leitura = await leitorExcelService.LerAsync(new(input, historico.NomeArquivo, historico.TamanhoArquivoBytes), aba, 20, cancellationToken);
         var planilha = leitura.AbaAtual!;
         var modelos = await modeloImportacaoService.ListarAsync(companyId, GetCurrentUserId(), cancellationToken);
-        var modelo = modeloId.HasValue ? modelos.FirstOrDefault(x => x.Id == modeloId) : await modeloImportacaoService.EncontrarCompativelAsync(companyId, GetCurrentUserId(), planilha.Cabecalhos, cancellationToken);
-        var automatico = modelo is null ? await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, cancellationToken) : new MapeamentoColunasImportacao(modelo.Mapeamentos);
-        return View(new ImportacaoMapeamentoViewModel { ImportacaoId=id, TokenArquivo=token, NomeArquivo=historico.NomeArquivo, AbaSelecionada=leitura.AbaSelecionada, Cabecalhos=planilha.Cabecalhos, Amostra=planilha.Amostra.Select(x => new ImportacaoLinhaAmostraViewModel { NumeroLinha=x.NumeroLinha, Valores=x.Valores }).ToList(), Campos=CatalogoCamposProdutoImportacao.Campos, Mapeamentos=automatico.Colunas, Confiancas=automatico.Confiancas ?? new Dictionary<string,double>(), Modelos=modelos, ModeloCarregadoId=modelo?.Id });
+        var modelo = modeloId.HasValue
+            ? modelos.FirstOrDefault(x => x.Id == modeloId)
+            : temporary.Mapeamentos is { Count: > 0 }
+                ? null
+                : await modeloImportacaoService.EncontrarCompativelAsync(companyId, GetCurrentUserId(), planilha.Cabecalhos, cancellationToken);
+        var automatico = modelo is not null
+            ? new MapeamentoColunasImportacao(modelo.Mapeamentos)
+            : temporary.Mapeamentos is { Count: > 0 }
+                ? new MapeamentoColunasImportacao(temporary.Mapeamentos)
+                : await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, cancellationToken);
+        var stockOptions = await stockService.GetWorkspaceOptionsAsync(companyId, cancellationToken);
+        return View(new ImportacaoMapeamentoViewModel
+        {
+            ImportacaoId = id,
+            TokenArquivo = token,
+            NomeArquivo = historico.NomeArquivo,
+            AbaSelecionada = leitura.AbaSelecionada,
+            Cabecalhos = planilha.Cabecalhos,
+            Amostra = planilha.Amostra.Select(x => new ImportacaoLinhaAmostraViewModel { NumeroLinha=x.NumeroLinha, Valores=x.Valores }).ToList(),
+            Campos = CatalogoCamposProdutoImportacao.Campos,
+            Mapeamentos = automatico.Colunas,
+            Confiancas = automatico.Confiancas ?? new Dictionary<string,double>(),
+            Conflitos = automatico.Conflitos ?? new Dictionary<string, IReadOnlyList<string>>(),
+            ErrosMapeamento = TempData["MapeamentoErro"] is string mensagem ? [new(string.Empty, mensagem)] : [],
+            Modelos = modelos,
+            ModeloCarregadoId = modelo?.Id,
+            Depositos = stockOptions.Warehouses,
+            LocaisInternos = stockOptions.Locations
+        });
     }
 
     [HttpPost("SalvarModelo")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SalvarModelo([FromBody] SalvarModeloImportacaoRequest request, CancellationToken cancellationToken)
-    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); var model = await modeloImportacaoService.SalvarAsync(companyId, GetCurrentUserId(), request.Nome, request.Padrao, request.Mapeamentos, request.Cabecalhos, cancellationToken); return Json(new { model.Id, model.Nome }); }
+    { try { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); var model = await modeloImportacaoService.SalvarAsync(companyId, GetCurrentUserId(), request.Nome, request.Padrao, request.Mapeamentos, request.Cabecalhos, cancellationToken); return Json(new { model.Id, model.Nome }); } catch (ArgumentException ex) { return BadRequest(ex.Message); } }
 
     [HttpPost("ExcluirModelo/{id:guid}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ExcluirModelo(Guid id, CancellationToken cancellationToken)
-    { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); await modeloImportacaoService.ExcluirAsync(companyId, id, cancellationToken); return NoContent(); }
+    { try { var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User); await modeloImportacaoService.ExcluirAsync(companyId, id, GetCurrentUserId(), cancellationToken); return NoContent(); } catch (UnauthorizedAccessException) { return Forbid(); } }
 
     [HttpPost("ValidarMapeamento")]
     [ValidateAntiForgeryToken]
@@ -264,22 +314,75 @@ public sealed class ImportacaoController : Controller
         if (!IsValidToken(request.TokenArquivo)) return RedirectToAction(nameof(Upload));
         var companyId = await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);
         var historico = await historicoImportacaoService.ObterAsync(companyId, request.ImportacaoId, cancellationToken);
-        var path = GetTemporaryPath(request.TokenArquivo);
-        if (historico is null || !System.IO.File.Exists(path)) return RedirectToAction(nameof(Upload));
-        Dictionary<string,string>? mappings; try { mappings=JsonSerializer.Deserialize<Dictionary<string,string>>(request.MapeamentoJson); } catch(JsonException) { return BadRequest(); }
-        if(mappings is null) return BadRequest();
-        await using var input=System.IO.File.OpenRead(path);
+        var temporary = await arquivoTemporarioService.ObterAsync(request.TokenArquivo, request.ImportacaoId, companyId, GetCurrentUserId(), cancellationToken);
+        if (historico is null || temporary is null) return RedirectToAction(nameof(Upload));
+        var mappings = MapeamentoColunasImportacao.Canonicalizar(request.Mapeamentos);
+        await using var input=System.IO.File.OpenRead(temporary.Caminho);
         var planilha=await leitorExcelService.LerAsync(new(input,historico.NomeArquivo,historico.TamanhoArquivoBytes),request.AbaSelecionada,10_000,cancellationToken);
-        var aba=planilha.AbaAtual!; var mapValidation=ValidadorMapeamentoColunas.Validar(mappings,aba.Cabecalhos); if(!mapValidation.Valido)return BadRequest("Mapeamento inválido.");
-        var options=new OpcoesValidacaoImportacao(request.InserirNovos,request.AtualizarExistentes,request.IgnorarVaziosAtualizacao,request.PermitirImportacaoParcial,request.BloquearComQualquerErro,true);
+        var aba = planilha.AbaAtual!;
+        var mapValidation = ValidadorMapeamentoColunas.Validar(mappings, aba.Cabecalhos, aba.Amostra.Select(x => x.Valores).ToList());
+        await arquivoTemporarioService.SalvarMapeamentoAsync(
+            request.TokenArquivo,
+            request.ImportacaoId,
+            companyId,
+            GetCurrentUserId(),
+            mappings,
+            aba.Nome,
+            cancellationToken);
+        if (!mapValidation.Valido)
+        {
+            TempData["MapeamentoErro"] = string.Join(" ", mapValidation.Erros.Select(x => x.Mensagem));
+            return RedirectToAction(nameof(Mapeamento), new
+            {
+                id = request.ImportacaoId,
+                token = request.TokenArquivo,
+                aba = aba.Nome
+            });
+        }
+        var options = new OpcoesValidacaoImportacao(
+            request.InserirNovos,
+            request.AtualizarExistentes,
+            request.IgnorarVaziosAtualizacao,
+            request.PermitirImportacaoParcial,
+            request.BloquearComQualquerErro,
+            true,
+            request.DepositoId,
+            request.LocalInternoId,
+            mappings,
+            aba.Nome);
         var context=await contextoValidacaoImportacaoService.PrepararAsync(request.ImportacaoId,companyId,GetCurrentUserId(),aba.Amostra,new(mappings),options,cancellationToken);
         var result=await validadorDadosImportacaoService.ValidarAsync(context,cancellationToken);
-        if(request.PersistirResultado) await historicoImportacaoService.SalvarValidacaoAsync(companyId,request.ImportacaoId,GetCurrentUserId(),result,options,cancellationToken);
-        IEnumerable<ResultadoValidacaoLinha> query=result.Linhas;
-        query=request.Filtro switch { "validas"=>query.Where(x=>x.PodeImportar),"novas"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Inserir),"atualizacoes"=>query.Where(x=>x.Operacao==TipoOperacaoImportacao.Atualizar),"avisos"=>query.Where(x=>x.Avisos.Count>0),"erros"=>query.Where(x=>x.Erros.Count>0),"duplicadas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Duplicada),"ignoradas"=>query.Where(x=>x.Status==StatusValidacaoLinha.Ignorada),_=>query};
-        if(!string.IsNullOrWhiteSpace(request.Busca)){var term=request.Busca.Trim();query=query.Where(x=>x.NumeroLinha.ToString()==term||(x.CodigoProduto?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||(x.Descricao?.Contains(term,StringComparison.OrdinalIgnoreCase)??false)||x.Erros.Concat(x.Avisos).Any(e=>e.Mensagem.Contains(term,StringComparison.OrdinalIgnoreCase)));}
-        const int pageSize=50; var total=query.Count();var pages=Math.Max(1,(int)Math.Ceiling(total/(double)pageSize));request.Pagina=Math.Clamp(request.Pagina,1,pages);
-        return View(new ImportacaoValidacaoViewModel{ImportacaoId=request.ImportacaoId,NomeArquivo=historico.NomeArquivo,AbaSelecionada=aba.Nome,Resultado=result,Linhas=query.Skip((request.Pagina-1)*pageSize).Take(pageSize).ToList(),Pagina=request.Pagina,TotalPaginas=pages,Filtro=request.Filtro,Busca=request.Busca,Request=request});
+        if(request.PersistirResultado)
+        {
+            if(request.ModeloImportacaoId.HasValue) await historicoImportacaoService.AssociarModeloAsync(companyId,request.ImportacaoId,request.ModeloImportacaoId.Value,GetCurrentUserId(),cancellationToken);
+            await historicoImportacaoService.SalvarValidacaoAsync(companyId,request.ImportacaoId,GetCurrentUserId(),result,options,cancellationToken);
+        }
+        return RedirectToAction(nameof(ValidacaoResultado),new{id=request.ImportacaoId,token=request.TokenArquivo});
+    }
+
+    [HttpGet("Validacao/{id:guid}")]
+    public async Task<IActionResult> ValidacaoResultado(Guid id,string? token,string? filtro,string? busca,int pagina=1,CancellationToken cancellationToken=default)
+    {
+        var companyId=await currentCompanyAccessor.GetCurrentCompanyIdAsync(User);var history=await historicoImportacaoService.ObterAsync(companyId,id,cancellationToken);
+        var page=await historicoImportacaoService.ObterValidacaoAsync(companyId,id,filtro,busca,pagina,50,cancellationToken);if(history is null||page is null)return NotFound();
+        var options = string.IsNullOrWhiteSpace(history.OpcoesValidacaoJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<OpcoesValidacaoImportacao>(history.OpcoesValidacaoJson);
+        return View("Validacao",new ImportacaoValidacaoViewModel
+        {
+            ImportacaoId=id,
+            NomeArquivo=history.NomeArquivo,
+            TokenArquivo=token,
+            AbaSelecionada=options?.AbaSelecionada,
+            Resultado=page.Resultado,
+            Linhas=page.Linhas,
+            Pagina=page.Pagina,
+            TotalPaginas=page.TotalPaginas,
+            Filtro=filtro,
+            Busca=busca,
+            Request=new(){ImportacaoId=id},
+            Mapeamentos=options?.Mapeamentos ?? new Dictionary<string,string>()
+        });
     }
 
     [HttpGet("Historico")]
@@ -368,20 +471,6 @@ public sealed class ImportacaoController : Controller
 
     private static bool IsValidToken(string token) =>
         Guid.TryParseExact(token, "N", out _);
-
-    private static string GetTemporaryDirectory() =>
-        Path.Combine(Path.GetTempPath(), "orizon-importacoes");
-
-    private static string GetTemporaryPath(string token) =>
-        Path.Combine(GetTemporaryDirectory(), $"{token}.xlsx");
-
-    private static void DeleteTemporaryFile(string path)
-    {
-        if (System.IO.File.Exists(path))
-        {
-            System.IO.File.Delete(path);
-        }
-    }
 
     private Guid? GetCurrentUserId()
     {

@@ -23,6 +23,7 @@ builder.Services.Configure<ImportacaoOptions>(
 
 builder.Services.AddScoped<ICurrentCompanyAccessor, CurrentCompanyAccessor>();
 builder.Services.AddScoped<ImportacaoUploadValidator>();
+builder.Services.AddSingleton<ImportacaoArquivoTemporarioService>();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);

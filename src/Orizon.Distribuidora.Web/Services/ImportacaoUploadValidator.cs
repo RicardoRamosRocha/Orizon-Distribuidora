@@ -73,6 +73,19 @@ public sealed class ImportacaoUploadValidator
             return ImportacaoUploadValidationResult.Failure($"Formato não permitido. Envie um arquivo {string.Join(", ", allowedExtensions)}.");
         }
 
+        try
+        {
+            using var stream = arquivo.OpenReadStream();
+            Span<byte> signature = stackalloc byte[4];
+            if (stream.Read(signature) != signature.Length || signature[0] != 0x50 || signature[1] != 0x4B ||
+                signature[2] is not (0x03 or 0x05 or 0x07) || signature[3] is not (0x04 or 0x06 or 0x08))
+                return ImportacaoUploadValidationResult.Failure("O conteúdo não possui uma assinatura ZIP/OpenXML válida para .xlsx.");
+        }
+        catch (IOException)
+        {
+            return ImportacaoUploadValidationResult.Failure("Não foi possível verificar o conteúdo do arquivo.");
+        }
+
         return ImportacaoUploadValidationResult.Success(fileName);
     }
 
