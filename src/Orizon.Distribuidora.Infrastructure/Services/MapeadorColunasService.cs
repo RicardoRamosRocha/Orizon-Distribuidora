@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using Orizon.Distribuidora.Application.Importacoes;
 using Orizon.Distribuidora.Application.Interfaces;
 
@@ -7,18 +5,55 @@ namespace Orizon.Distribuidora.Infrastructure.Services;
 
 public sealed class MapeadorColunasService : IMapeadorColunasService
 {
-    public Task<MapeamentoColunasImportacao> MapearAsync(IReadOnlyList<string> cabecalhos, CancellationToken cancellationToken = default)
+    private readonly ISimilarityEngine similarityEngine;
+    private readonly IHeaderSynonymProvider? synonymProvider;
+
+    public MapeadorColunasService() : this(new SimilarityEngine(), null)
+    {
+    }
+
+    public MapeadorColunasService(ISimilarityEngine similarityEngine, IHeaderSynonymProvider? synonymProvider)
+    {
+        this.similarityEngine = similarityEngine;
+        this.synonymProvider = synonymProvider;
+    }
+
+    public Task<MapeamentoColunasImportacao> MapearAsync(
+        IReadOnlyList<string> cabecalhos,
+        CancellationToken cancellationToken = default) =>
+        MapearAsync(cabecalhos, null, cancellationToken);
+
+    public Task<MapeamentoColunasImportacao> MapearAsync(
+        IReadOnlyList<string> cabecalhos,
+        Guid companyId,
+        CancellationToken cancellationToken = default) =>
+        MapearAsync(cabecalhos, (Guid?)companyId, cancellationToken);
+
+    private async Task<MapeamentoColunasImportacao> MapearAsync(
+        IReadOnlyList<string> cabecalhos,
+        Guid? companyId,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(cabecalhos);
+        var synonyms = synonymProvider is null
+            ? null
+            : await synonymProvider.GetAllSynonymsAsync(companyId, cancellationToken);
         var resultado = new Dictionary<string, string>();
         var confiancas = new Dictionary<string, double>();
         var conflitos = new Dictionary<string, IReadOnlyList<string>>();
-        var propostas = new List<(CampoImportavel Campo, string Coluna, double Nota)>();
+        var propostas = new List<(CampoImportavel Campo, string Coluna, double Nota, RecognitionResult Recognition)>();
+        var recognitionByField = new Dictionary<string, RecognitionResult>(StringComparer.Ordinal);
+        var reconhecimentos = cabecalhos
+            .Select(header => (Header: header, Results: similarityEngine.Recognize(header, synonyms)))
+            .ToList();
 
         foreach (var campo in CatalogoCamposProdutoImportacao.Campos.Where(campo => campo.AceitaImportacao))
         {
-            var candidatas = cabecalhos
-                .Select(x => (Coluna: x, Nota: MelhorNota(campo, x)))
+            cancellationToken.ThrowIfCancellationRequested();
+            var candidatas = reconhecimentos
+                .SelectMany(item => item.Results
+                    .Where(result => result.CampoDestino == campo.Chave)
+                    .Select(result => (Coluna: item.Header, Nota: result.Confidence / 100d, Recognition: result)))
                 .Where(x => x.Nota >= .72)
                 .OrderByDescending(x => x.Nota)
                 .ToList();
@@ -35,7 +70,8 @@ public sealed class MapeadorColunasService : IMapeadorColunasService
                 continue;
             }
 
-            propostas.Add((campo, melhores[0], melhorNota));
+            var best = candidatas.First(item => item.Coluna == melhores[0]);
+            propostas.Add((campo, best.Coluna, melhorNota, best.Recognition));
         }
 
         foreach (var grupo in propostas.GroupBy(x => x.Coluna, StringComparer.Ordinal))
@@ -54,55 +90,11 @@ public sealed class MapeadorColunasService : IMapeadorColunasService
             var melhor = melhores[0];
             resultado[melhor.Campo.Chave] = melhor.Coluna;
             confiancas[melhor.Campo.Chave] = melhor.Nota;
+            recognitionByField[melhor.Campo.Chave] = melhor.Recognition;
         }
 
-        return Task.FromResult(new MapeamentoColunasImportacao(resultado, confiancas, conflitos));
+        return new MapeamentoColunasImportacao(resultado, confiancas, conflitos, recognitionByField);
     }
 
-    public static string Normalizar(string valor)
-    {
-        var decomposed = valor.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder();
-        var ultimoFoiEspaco = false;
-        foreach (var c in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            if (char.IsWhiteSpace(c))
-            {
-                if (!ultimoFoiEspaco)
-                {
-                    builder.Append(' ');
-                    ultimoFoiEspaco = true;
-                }
-                continue;
-            }
-
-            builder.Append(c);
-            ultimoFoiEspaco = false;
-        }
-
-        return builder.ToString().Trim();
-    }
-
-    private static double MelhorNota(CampoImportavel campo, string coluna) =>
-        new[] { campo.Nome, campo.Chave }.Concat(campo.Sinonimos).Max(x => Similaridade(Normalizar(x), Normalizar(coluna)));
-
-    private static double Similaridade(string a, string b)
-    {
-        if (a == b) return 1;
-        if (a.Length == 0 || b.Length == 0) return 0;
-        if ((a.Length >= 4 && b.Contains(a)) || (b.Length >= 4 && a.Contains(b))) return .9;
-        var previous = Enumerable.Range(0, b.Length + 1).ToArray();
-        for (var i = 1; i <= a.Length; i++)
-        {
-            var current = new int[b.Length + 1]; current[0] = i;
-            for (var j = 1; j <= b.Length; j++) current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
-            previous = current;
-        }
-        return 1d - (double)previous[b.Length] / Math.Max(a.Length, b.Length);
-    }
+    public static string Normalizar(string valor) => HeaderSynonymDictionary.Normalize(valor);
 }

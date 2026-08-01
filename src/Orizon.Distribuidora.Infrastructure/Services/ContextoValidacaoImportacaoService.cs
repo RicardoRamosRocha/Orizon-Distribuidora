@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Orizon.Distribuidora.Application.Importacoes;
 using Orizon.Distribuidora.Application.Interfaces;
+using Orizon.Distribuidora.Domain.Enums;
 using Orizon.Distribuidora.Infrastructure.Data;
 
 namespace Orizon.Distribuidora.Infrastructure.Services;
@@ -17,8 +18,45 @@ public sealed class ContextoValidacaoImportacaoService(ApplicationDbContext db) 
             .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         var produtos = await db.Products.AsNoTracking()
             .Where(x => x.CompanyId == empresaId && (codigos.Contains(x.InternalCode) || x.Barcode != null && barras.Contains(x.Barcode)))
-            .Select(x => new ProdutoExistenteImportacao(x.Id, x.InternalCode, x.Name, x.Barcode, x.CostPrice, x.SalePrice, x.UnitOfMeasureId, x.IsActive, x.ProductType, x.PartnerId, x.ControlsStock))
+            .Select(x => new ProdutoExistenteImportacao(
+                x.Id, x.InternalCode, x.Name, x.Barcode, x.CostPrice, x.SalePrice,
+                x.UnitOfMeasureId, x.IsActive, x.ProductType, x.PartnerId, x.ControlsStock,
+                x.Description, x.CategoryId, x.SubcategoryId, x.BrandId, x.ProductGroupId,
+                x.MainSupplierId, x.DefaultWarehouseId, x.DefaultWarehouseLocationId,
+                x.Ncm, x.Notes, x.MinimumStock))
             .ToListAsync(cancellationToken);
+        var codigosExistentes = produtos.Select(x => ValidadorDadosImportacaoService.NormalizarCodigo(x.Codigo))
+            .ToHashSet(StringComparer.Ordinal);
+        var normalizacao = NormalizadorDadosImportacao.Normalizar(linhas, mapeamento, linha =>
+            !opcoes.IgnorarVaziosAtualizacao ||
+            !codigosExistentes.Contains(ValidadorDadosImportacaoService.NormalizarCodigo(Valor(linha, mapeamento, "codigo"))));
+        linhas = normalizacao.Linhas;
+        var produtosComSaldoInicialNoDeposito = new HashSet<Guid>();
+        if (opcoes.DepositoId.HasValue)
+        {
+            var codigosComEstoqueInicial = linhas
+                .Where(linha => ValidadorDadosImportacaoService.TryDecimal(
+                    Valor(linha, mapeamento, "estoqueInicial") ?? string.Empty, out var quantidade) && quantidade > 0)
+                .Select(linha => ValidadorDadosImportacaoService.NormalizarCodigo(Valor(linha, mapeamento, "codigo")))
+                .ToHashSet(StringComparer.Ordinal);
+            var produtosCandidatos = produtos
+                .Where(produto => codigosComEstoqueInicial.Contains(ValidadorDadosImportacaoService.NormalizarCodigo(produto.Codigo)))
+                .Select(produto => produto.Id)
+                .ToList();
+
+            if (produtosCandidatos.Count > 0)
+            {
+                produtosComSaldoInicialNoDeposito = (await db.StockMovements.AsNoTracking()
+                    .Where(movimento => movimento.CompanyId == empresaId &&
+                        movimento.WarehouseId == opcoes.DepositoId &&
+                        movimento.Type == StockMovementType.InitialBalance &&
+                        produtosCandidatos.Contains(movimento.ProductId))
+                    .Select(movimento => movimento.ProductId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken))
+                    .ToHashSet();
+            }
+        }
 
         var unidades = await db.UnitsOfMeasure.AsNoTracking().Where(x => x.CompanyId == empresaId && x.IsActive)
             .Select(x => new ReferenciaImportacao(x.Id, x.Code ?? x.Abbreviation, x.Name, null, null)).ToListAsync(cancellationToken);
@@ -42,7 +80,8 @@ public sealed class ContextoValidacaoImportacaoService(ApplicationDbContext db) 
 
         var referencias = new ReferenciasProdutoImportacao(unidades, marcas, categorias, subcategorias, grupos,
             fornecedores, parceiros, depositoValido, localValido);
-        return new(importacaoId, empresaId, usuarioId, linhas, mapeamento, opcoes, produtos, referencias);
+        return new(importacaoId, empresaId, usuarioId, linhas, mapeamento, opcoes, produtos, referencias,
+            normalizacao.QuantidadeUnidadesPreenchidasAutomaticamente, produtosComSaldoInicialNoDeposito);
     }
 
     private static string? Valor(LinhaPlanilhaImportada linha, MapeamentoColunasImportacao mapeamento, string campo) =>

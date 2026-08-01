@@ -1,6 +1,10 @@
 @model ImportacaoMapeamentoViewModel
 @using System.Text.Json
-@{ ViewData["Title"] = "Mapeamento de colunas"; ViewData["ApplicationName"] = "Distribuidora"; }
+@using Orizon.Distribuidora.Application.Importacoes
+@{
+    ViewData["Title"] = "Revisão do reconhecimento";
+    ViewData["ApplicationName"] = "Distribuidora";
+}
 @section Styles { <link rel="stylesheet" href="~/css/importacao-premium.css" asp-append-version="true" /> }
 
 <main class="import-workspace" data-import-mapping
@@ -9,77 +13,118 @@
       data-delete-model-url="@Url.Action("ExcluirModelo")"
       data-map-base-url="@Url.Action("Mapeamento", new { id=Model.ImportacaoId,token=Model.TokenArquivo,aba=Model.AbaSelecionada })">
     <header class="import-header">
-        <div><span class="import-eyebrow">Importação de produtos</span><h1>Mapeamento de colunas</h1><p>Defina com precisão o destino dos dados de <strong>@Model.NomeArquivo</strong>.</p></div>
-        <span class="import-stage-badge">Etapa 3 de 6</span>
+        <div>
+            <span class="import-eyebrow">Orizon Data Recognition Engine</span>
+            <h1>Revise o reconhecimento</h1>
+            <p>O ODRE analisou <strong>@Model.NomeArquivo</strong>. Confirme somente as colunas destacadas.</p>
+        </div>
+        <span class="import-stage-badge">Etapa 3 de 6 · Revisão</span>
     </header>
+
     <ol class="import-steps" aria-label="Progresso da importação">
-        @foreach (var step in new[]{"Upload","Conferência","Mapeamento","Validação","Execução","Resultado"}) { var index=Array.IndexOf(new[]{"Upload","Conferência","Mapeamento","Validação","Execução","Resultado"},step)+1;<li class="@(index<3?"done":index==3?"current":"")"><span>@index</span>@step</li> }
+        @foreach (var item in new[] { ("1", "Upload"), ("2", "Reconhecimento"), ("3", "Revisão"), ("4", "Validação"), ("5", "Execução"), ("6", "Resultado") })
+        {
+            <li class="@(item.Item1 == "3" ? "current" : int.Parse(item.Item1) < 3 ? "done" : "")"><span>@item.Item1</span>@item.Item2</li>
+        }
     </ol>
+
     @Html.AntiForgeryToken()
-    <div class="import-notice danger" data-import-notice
-         hidden="@(Model.ErrosMapeamento.Count == 0)" role="alert">
-        @string.Join(" ", Model.ErrosMapeamento.Select(x => x.Mensagem))
+    <div class="import-notice danger" data-import-notice hidden="@(Model.ErrosMapeamento.Count == 0)" role="alert">
+        @string.Join(" ", Model.ErrosMapeamento.Select(item => item.Mensagem))
     </div>
 
-    <section class="import-summary-grid">
-        <article><span>Arquivo</span><strong>@Model.NomeArquivo</strong><small>Aba @Model.AbaSelecionada</small></article>
-        <article><span>Progresso obrigatório</span><strong data-progress-text>0%</strong><div class="import-progress"><i data-progress-bar></i></div></article>
-        <article><span>Obrigatórios</span><strong><span data-required-mapped>0</span> mapeados</strong><small><span data-missing-count>0</span> pendentes</small></article>
-        <article><span>Opcionais</span><strong><span data-optional-mapped>0</span> mapeados</strong><small><span data-unavailable-count>0</span> indisponíveis</small></article>
-        <article><span>Conflitos</span><strong data-conflict-count>0</strong><small><span data-unused-count>0</span> coluna(s) não utilizadas</small></article>
+    <section class="import-recognition-summary" aria-label="Resumo do reconhecimento">
+        <article><span class="recognition-icon"><orizon-icon name="columns" size="18" /></span><div><small>Total de colunas</small><strong data-recognition-total>@Model.Cabecalhos.Count</strong></div></article>
+        <article><span class="recognition-icon success"><orizon-icon name="check" size="18" /></span><div><small>Reconhecidas</small><strong data-recognized-count>@Model.ColunasReconhecidas</strong></div></article>
+        <article><span class="recognition-icon learned"><orizon-icon name="sparkles" size="18" /></span><div><small>Aprendidas</small><strong data-learned-count>@Model.ColunasAprendidas</strong></div></article>
+        <article class="@(Model.ColunasPendentes > 0 ? "attention" : null)"><span class="recognition-icon warning"><orizon-icon name="alert-triangle" size="18" /></span><div><small>Pendentes</small><strong data-review-count>@Model.ColunasPendentes</strong></div></article>
+        <article><span class="recognition-icon"><orizon-icon name="activity" size="18" /></span><div><small>Confiança geral</small><strong data-overall-confidence>@Model.ConfiancaGeral.ToString("0")%</strong></div></article>
     </section>
 
     <section class="import-card import-model-bar">
-        <label><span>Modelo de importação</span><select data-model-select><option value="">Mapeamento automático</option>@foreach(var m in Model.Modelos){<option value="@m.Id" selected="@(m.Id==Model.ModeloCarregadoId)">@m.Nome @(m.Padrao ? "• Padrão" : "")</option>}</select></label>
+        <label><span>Modelo de importação</span><select data-model-select><option value="">Mapeamento inteligente</option>@foreach(var item in Model.Modelos){<option value="@item.Id" selected="@(item.Id==Model.ModeloCarregadoId)">@item.Nome @(item.Padrao ? "• Padrão" : "")</option>}</select></label>
         <button type="button" class="import-button" data-save-model>Salvar modelo</button>
         <button type="button" class="import-button danger" data-delete-model disabled="@(Model.ModeloCarregadoId is null)">Excluir</button>
         @if(Model.ModeloCarregadoId is not null){<p class="import-inline-success">Modelo compatível reconhecido e carregado.</p>}
     </section>
 
-    <div class="import-mapping-layout">
-        <aside class="import-card import-columns-panel"><div class="import-card-heading"><div><h2>Colunas da planilha</h2><p>@Model.Cabecalhos.Count coluna(s) reconhecidas</p></div></div><div class="import-column-list">@foreach(var header in Model.Cabecalhos){<span data-column-chip="@header">@header<small>@(Model.Amostra.FirstOrDefault()?.Valores.TryGetValue(header,out var sampleValue)==true ? sampleValue : "Sem prévia")</small></span>}</div></aside>
-        <section class="import-card import-fields-panel">
-            <div class="import-card-heading"><div><h2>Campos do sistema</h2><p>Obrigatórios, opcionais e indisponíveis com o destino real.</p></div><div class="import-legend"><span class="mapped">Mapeado</span><span class="required">Obrigatório</span><span class="unavailable">Indisponível</span></div></div>
-            <div class="import-table-scroll"><table class="import-table import-map-table"><thead><tr><th>Campo e destino</th><th>Coluna da planilha</th><th>Estado</th><th>Prévia</th></tr></thead><tbody>
-            @foreach(var campo in Model.Campos)
-            {
-                Model.Mapeamentos.TryGetValue(campo.Chave,out var selected); Model.Confiancas.TryGetValue(campo.Chave,out var confidence);
-                Model.Conflitos.TryGetValue(campo.Chave, out var conflitos);
-                <tr class="map-row @(campo.Obrigatorio?"required":"") @(!campo.AceitaImportacao?"unavailable":"")" data-field="@campo.Chave" data-required="@campo.Obrigatorio.ToString().ToLowerInvariant()" data-available="@campo.AceitaImportacao.ToString().ToLowerInvariant()" data-auto-conflict="@(conflitos is { Count: > 0 } ? string.Join("|", conflitos) : null)">
-                    <td><div class="import-field-title"><strong>@campo.Nome</strong>@if(campo.Obrigatorio){<span>Obrigatório</span>}else if(!campo.AceitaImportacao){<span>Indisponível</span>}else{<span>Opcional</span>}</div><small>@campo.Descricao</small><code>@campo.Destino</code></td>
-                    <td><select class="column-select" name="Mapeamentos[@campo.Chave]" form="validationForm" disabled="@(!campo.AceitaImportacao)"><option value="">Não importar</option>@if(campo.AceitaImportacao){@foreach(var h in Model.Cabecalhos){<option value="@h" selected="@(h==selected)">@h</option>}}</select></td>
-                    <td><span class="import-status" data-map-status>@(!campo.AceitaImportacao?"Indisponível":conflitos is { Count: > 0 }?"Conflito":"Pendente")</span><small data-map-observation>@(campo.MotivoIndisponibilidade ?? (conflitos is { Count: > 0 } ? $"Escolha uma coluna: {string.Join(", ", conflitos)}." : confidence>0 ? $"Detectado automaticamente ({confidence:P0})" : "Selecione a coluna correspondente."))</small></td>
-                    <td data-preview-value>—</td>
-                </tr>
-            }
-            </tbody></table></div>
+    <div class="import-review-layout">
+        <section class="import-card import-recognition-table-card">
+            <div class="import-card-heading">
+                <div><h2>Reconhecimento das colunas</h2><p>Linhas sem destaque já estão prontas. Revise apenas as sinalizadas.</p></div>
+                <div class="import-legend"><span class="mapped">Reconhecida</span><span class="required">Revisar</span><span class="unavailable">Não importar</span></div>
+            </div>
+            <div class="import-table-scroll">
+                <table class="import-table import-recognition-table">
+                    <thead><tr><th>Coluna Excel</th><th>Campo sugerido</th><th>Estratégia</th><th>Confiança</th><th>Status</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.Reconhecimentos)
+                    {
+                        var sample = Model.Amostra.FirstOrDefault()?.Valores.TryGetValue(item.Cabecalho, out var sampleValue) == true ? sampleValue : null;
+                        var strategy = item.Estrategia?.ToString() ?? "Similarity";
+                        <tr class="map-row @(item.ExigeRevisao ? "needs-review" : null)"
+                            data-header="@item.Cabecalho"
+                            data-original-field="@item.CampoDestino"
+                            data-confidence="@item.Confianca.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                            data-strategy="@strategy"
+                            data-learned="@item.Aprendido.ToString().ToLowerInvariant()"
+                            data-needs-review="@item.ExigeRevisao.ToString().ToLowerInvariant()"
+                            data-auto-conflict="@(item.Conflitos.Count > 0 ? string.Join("|", item.Conflitos) : null)">
+                            <td><strong>@item.Cabecalho</strong><small>@(string.IsNullOrWhiteSpace(sample) ? "Sem prévia" : sample)</small></td>
+                            <td>
+                                <select class="column-select" aria-label="Campo de destino para @item.Cabecalho">
+                                    @if(item.ExigeRevisao && string.IsNullOrWhiteSpace(item.CampoDestino)){<option value="__pending" selected>Selecione um campo</option>}
+                                    <option value="" selected="@(!item.ExigeRevisao && string.IsNullOrWhiteSpace(item.CampoDestino))">Não importar</option>
+                                    @foreach(var campo in Model.Campos.Where(campo => campo.AceitaImportacao))
+                                    {
+                                        <option value="@campo.Chave" selected="@(campo.Chave == item.CampoDestino)">@campo.Nome</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><span class="recognition-strategy @strategy.ToLowerInvariant()" data-recognition-strategy>@strategy</span>@if(item.Aprendido){<small class="recognition-learned">Aprendido pela Orizon</small>}</td>
+                            <td><div class="recognition-confidence"><strong data-confidence-text>@item.Confianca.ToString("0")%</strong><span><i data-confidence-bar style="width:@Math.Clamp(item.Confianca,0,100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></i></span></div></td>
+                            <td><span class="import-status @(item.ExigeRevisao ? "pending" : !string.IsNullOrWhiteSpace(item.CampoDestino) ? "mapped" : "unavailable")" data-map-status>@(item.ExigeRevisao ? "Revisar" : !string.IsNullOrWhiteSpace(item.CampoDestino) ? "Reconhecida" : "Não importar")</span><small data-map-observation>@(item.Conflitos.Count > 0 ? "Sugestão ambígua; confirme o destino." : item.ExigeRevisao ? "Confirme ou ignore esta coluna." : "Pronta para validação.")</small><button type="button" class="recognition-confirm" data-confirm-row hidden="@(!item.ExigeRevisao || string.IsNullOrWhiteSpace(item.CampoDestino))">Confirmar sugestão</button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
         </section>
+
+        <aside class="import-card import-live-summary" aria-labelledby="live-summary-title">
+            <div class="import-card-heading"><div><span class="import-eyebrow">Resumo em tempo real</span><h2 id="live-summary-title">Prontidão do mapeamento</h2></div></div>
+            <div class="live-readiness"><strong data-progress-text>0%</strong><span>campos obrigatórios</span><div class="import-progress"><i data-progress-bar></i></div></div>
+            <dl class="live-summary-list">
+                <div><dt>Obrigatórios</dt><dd><span data-required-mapped>0</span>/4</dd></div>
+                <div><dt>Revisões pendentes</dt><dd data-missing-count>0</dd></div>
+                <div><dt>Conflitos</dt><dd data-conflict-count>0</dd></div>
+                <div><dt>Colunas ignoradas</dt><dd data-unused-count>0</dd></div>
+                <div><dt>Confiança média</dt><dd data-side-confidence>0%</dd></div>
+            </dl>
+            <div class="live-required" data-required-summary><strong>Campos obrigatórios</strong><p data-required-message>Calculando prontidão…</p></div>
+            <p class="live-summary-hint">As alterações são refletidas imediatamente. O ODRE aprenderá novos sinônimos somente após sua confirmação.</p>
+        </aside>
     </div>
 
     <section class="import-card">
-        <div class="import-card-heading"><div><h2>Regras da validação</h2><p>Estoque inicial exige depósito e local interno ativos da empresa.</p></div></div>
+        <div class="import-card-heading"><div><h2>Regras da validação</h2><p>As regras permanecem inalteradas. Estoque inicial exige depósito e local interno ativos.</p></div></div>
         <div class="import-options-grid">
-            <label class="import-toggle"><input type="checkbox" id="optInsert" name="InserirNovos" value="true" form="validationForm" checked><span>Inserir produtos novos</span></label>
-            <input type="hidden" name="InserirNovos" value="false" form="validationForm">
-            <label class="import-toggle"><input type="checkbox" id="optUpdate" name="AtualizarExistentes" value="true" form="validationForm" checked><span>Atualizar produtos existentes</span></label>
-            <input type="hidden" name="AtualizarExistentes" value="false" form="validationForm">
-            <label class="import-toggle"><input type="checkbox" id="optEmpty" name="IgnorarVaziosAtualizacao" value="true" form="validationForm" checked><span>Ignorar vazios em atualizações</span></label>
-            <input type="hidden" name="IgnorarVaziosAtualizacao" value="false" form="validationForm">
-            <label class="import-toggle"><input type="checkbox" id="optPartial" name="PermitirImportacaoParcial" value="true" form="validationForm" checked><span>Permitir importação parcial</span></label>
-            <input type="hidden" name="PermitirImportacaoParcial" value="false" form="validationForm">
-            <label class="import-toggle"><input type="checkbox" id="optBlock" name="BloquearComQualquerErro" value="true" form="validationForm"><span>Bloquear com qualquer erro</span></label>
-            <input type="hidden" name="BloquearComQualquerErro" value="false" form="validationForm">
+            <label class="import-toggle"><input type="checkbox" id="optInsert" name="InserirNovos" value="true" form="validationForm" checked><span>Inserir produtos novos</span></label><input type="hidden" name="InserirNovos" value="false" form="validationForm">
+            <label class="import-toggle"><input type="checkbox" id="optUpdate" name="AtualizarExistentes" value="true" form="validationForm" checked><span>Atualizar produtos existentes</span></label><input type="hidden" name="AtualizarExistentes" value="false" form="validationForm">
+            <label class="import-toggle"><input type="checkbox" id="optEmpty" name="IgnorarVaziosAtualizacao" value="true" form="validationForm" checked><span>Ignorar vazios em atualizações</span></label><input type="hidden" name="IgnorarVaziosAtualizacao" value="false" form="validationForm">
+            <label class="import-toggle"><input type="checkbox" id="optPartial" name="PermitirImportacaoParcial" value="true" form="validationForm" checked><span>Permitir importação parcial</span></label><input type="hidden" name="PermitirImportacaoParcial" value="false" form="validationForm">
+            <label class="import-toggle"><input type="checkbox" id="optBlock" name="BloquearComQualquerErro" value="true" form="validationForm"><span>Bloquear com qualquer erro</span></label><input type="hidden" name="BloquearComQualquerErro" value="false" form="validationForm">
             <label><span>Depósito do estoque inicial</span><select id="warehouseSelect" name="DepositoId" form="validationForm"><option value="">Selecione quando houver estoque</option>@foreach(var item in Model.Depositos){<option value="@item.Id">@item.Label</option>}</select></label>
             <label><span>Local interno</span><select id="locationSelect" name="LocalInternoId" form="validationForm" disabled><option value="">Selecione o depósito primeiro</option>@foreach(var item in Model.LocaisInternos){<option value="@item.Id" data-parent="@item.ParentId" hidden>@item.Label</option>}</select></label>
         </div>
     </section>
 
-    <div class="import-actions"><div><a class="import-button" href="@Url.Action("Preview",new{id=Model.ImportacaoId,token=Model.TokenArquivo,aba=Model.AbaSelecionada})">Voltar</a><form class="import-inline-form" method="post" action="@Url.Action("Cancelar")">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.ImportacaoId"><input type="hidden" name="token" value="@Model.TokenArquivo"><button class="import-button danger" type="submit">Cancelar importação</button></form></div><button class="import-button primary" type="submit" form="validationForm" data-continue disabled>Validar planilha</button></div>
-    <form id="validationForm" data-validation-form method="post" action="@Url.Action("Validacao")" hidden>@Html.AntiForgeryToken()<input type="hidden" name="ImportacaoId" value="@Model.ImportacaoId"><input type="hidden" name="TokenArquivo" value="@Model.TokenArquivo"><input type="hidden" name="AbaSelecionada" value="@Model.AbaSelecionada"><input type="hidden" name="ModeloImportacaoId" value="@Model.ModeloCarregadoId"></form>
+    <div class="import-actions"><div><a class="import-button" href="@Url.Action("Preview",new{id=Model.ImportacaoId,token=Model.TokenArquivo,aba=Model.AbaSelecionada})">Voltar</a><form class="import-inline-form" method="post" action="@Url.Action("Cancelar")">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.ImportacaoId"><input type="hidden" name="token" value="@Model.TokenArquivo"><button class="import-button danger" type="submit">Cancelar importação</button></form></div><button class="import-button primary" type="submit" form="validationForm" data-continue disabled>Continuar para validação</button></div>
+    <form id="validationForm" data-validation-form method="post" action="@Url.Action("Validacao")" hidden>@Html.AntiForgeryToken()<input type="hidden" name="ImportacaoId" value="@Model.ImportacaoId"><input type="hidden" name="TokenArquivo" value="@Model.TokenArquivo"><input type="hidden" name="AbaSelecionada" value="@Model.AbaSelecionada"><input type="hidden" name="ModeloImportacaoId" value="@Model.ModeloCarregadoId"><span data-mapping-inputs></span></form>
 
     <dialog class="import-dialog" data-save-dialog><form method="dialog"><header><div><h2>Salvar modelo</h2><p>Reutilize este mapeamento em arquivos compatíveis.</p></div><button value="cancel" aria-label="Fechar">×</button></header><div class="import-dialog-body"><label><span>Nome do modelo</span><input data-model-name maxlength="120" required></label><label class="import-toggle"><input type="checkbox" data-model-default><span>Definir como padrão</span></label></div><footer><button class="import-button" value="cancel">Cancelar</button><button class="import-button primary" value="default" data-confirm-save>Salvar</button></footer></form></dialog>
     <dialog class="import-dialog" data-delete-dialog><form method="dialog"><header><div><h2>Excluir modelo?</h2><p>O modelo deixará de aparecer para novas importações.</p></div></header><footer><button class="import-button" value="cancel">Cancelar</button><button class="import-button danger" value="default" data-confirm-delete>Excluir</button></footer></form></dialog>
     <div class="import-loading" data-loading hidden><span></span><strong>Analisando a planilha…</strong><small>Não feche esta página.</small></div>
-    <script type="application/json" data-import-data>@Html.Raw(JsonSerializer.Serialize(new { headers=Model.Cabecalhos, sample=Model.Amostra.Select(x=>x.Valores) }))</script>
+    <script type="application/json" data-import-data>@Html.Raw(JsonSerializer.Serialize(new { headers=Model.Cabecalhos, sample=Model.Amostra.Select(x=>x.Valores), required=Model.Campos.Where(x=>x.AceitaImportacao&&x.Obrigatorio).Select(x=>new{chave=x.Chave,nome=x.Nome}) }))</script>
 </main>
 @section Scripts { <script src="~/js/importacao-mapeamento.js" asp-append-version="true"></script> }

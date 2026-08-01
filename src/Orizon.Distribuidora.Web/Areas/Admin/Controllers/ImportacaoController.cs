@@ -24,6 +24,8 @@ public sealed class ImportacaoController : Controller
     private readonly ImportacaoUploadValidator uploadValidator;
     private readonly ImportacaoOptions options;
     private readonly IMapeadorColunasService mapeadorColunasService;
+    private readonly IHeaderLearningService headerLearningService;
+    private readonly IHeaderSynonymProvider headerSynonymProvider;
     private readonly IModeloImportacaoService modeloImportacaoService;
     private readonly IValidadorDadosImportacaoService validadorDadosImportacaoService;
     private readonly IContextoValidacaoImportacaoService contextoValidacaoImportacaoService;
@@ -40,6 +42,8 @@ public sealed class ImportacaoController : Controller
         ImportacaoUploadValidator uploadValidator,
         IOptions<ImportacaoOptions> options,
         IMapeadorColunasService mapeadorColunasService,
+        IHeaderLearningService headerLearningService,
+        IHeaderSynonymProvider headerSynonymProvider,
         IModeloImportacaoService modeloImportacaoService,
         IValidadorDadosImportacaoService validadorDadosImportacaoService,
         IContextoValidacaoImportacaoService contextoValidacaoImportacaoService,
@@ -55,6 +59,8 @@ public sealed class ImportacaoController : Controller
         this.uploadValidator = uploadValidator;
         this.options = options.Value;
         this.mapeadorColunasService = mapeadorColunasService;
+        this.headerLearningService = headerLearningService;
+        this.headerSynonymProvider = headerSynonymProvider;
         this.modeloImportacaoService = modeloImportacaoService;
         this.validadorDadosImportacaoService = validadorDadosImportacaoService;
         this.contextoValidacaoImportacaoService = contextoValidacaoImportacaoService;
@@ -267,11 +273,37 @@ public sealed class ImportacaoController : Controller
             : temporary.Mapeamentos is { Count: > 0 }
                 ? null
                 : await modeloImportacaoService.EncontrarCompativelAsync(companyId, GetCurrentUserId(), planilha.Cabecalhos, cancellationToken);
+        var reconhecimento = await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, companyId, cancellationToken);
         var automatico = modelo is not null
             ? new MapeamentoColunasImportacao(modelo.Mapeamentos)
             : temporary.Mapeamentos is { Count: > 0 }
                 ? new MapeamentoColunasImportacao(temporary.Mapeamentos)
-                : await mapeadorColunasService.MapearAsync(planilha.Cabecalhos, cancellationToken);
+                : reconhecimento;
+        var mapeamentoConfirmado = modelo is not null || temporary.Mapeamentos is { Count: > 0 };
+        var learnedKeys = await headerSynonymProvider.GetLearnedSynonymKeysAsync(companyId, cancellationToken);
+        var camposPorChave = CatalogoCamposProdutoImportacao.Campos.ToDictionary(item => item.Chave, StringComparer.Ordinal);
+        var recognitionRows = planilha.Cabecalhos.Select(header =>
+        {
+            var field = automatico.Colunas.FirstOrDefault(item => item.Value == header).Key;
+            RecognitionResult? recognition = null;
+            if (!string.IsNullOrWhiteSpace(field) && reconhecimento.Reconhecimentos?.TryGetValue(field, out var recognized) == true && recognized.MatchedHeader == header)
+                recognition = recognized;
+            var conflicts = reconhecimento.Conflitos?.Where(item => item.Value.Contains(header)).Select(item => item.Key).ToList() ?? [];
+            var confidence = recognition?.Confidence ?? (!string.IsNullOrWhiteSpace(field) && automatico.Confiancas?.TryGetValue(field, out var score) == true ? score * 100 : 0);
+            var strategy = recognition?.Strategy ?? (!string.IsNullOrWhiteSpace(field) ? RecognitionStrategy.Similarity : null);
+            var learned = !string.IsNullOrWhiteSpace(field) && learnedKeys.Contains($"{field}:{HeaderSynonymDictionary.Normalize(header)}");
+            return new ImportacaoReconhecimentoColunaViewModel
+            {
+                Cabecalho = header,
+                CampoDestino = string.IsNullOrWhiteSpace(field) ? null : field,
+                CampoNome = !string.IsNullOrWhiteSpace(field) && camposPorChave.TryGetValue(field, out var campo) ? campo.Nome : null,
+                Estrategia = strategy,
+                Confianca = confidence,
+                Aprendido = learned,
+                ExigeRevisao = conflicts.Count > 0 || string.IsNullOrWhiteSpace(field) || (!mapeamentoConfirmado && strategy == RecognitionStrategy.Similarity),
+                Conflitos = conflicts
+            };
+        }).ToList();
         var stockOptions = await stockService.GetWorkspaceOptionsAsync(companyId, cancellationToken);
         return View(new ImportacaoMapeamentoViewModel
         {
@@ -289,7 +321,8 @@ public sealed class ImportacaoController : Controller
             Modelos = modelos,
             ModeloCarregadoId = modelo?.Id,
             Depositos = stockOptions.Warehouses,
-            LocaisInternos = stockOptions.Locations
+            LocaisInternos = stockOptions.Locations,
+            Reconhecimentos = recognitionRows
         });
     }
 
@@ -339,6 +372,7 @@ public sealed class ImportacaoController : Controller
                 aba = aba.Nome
             });
         }
+        await headerLearningService.LearnAsync(companyId, GetCurrentUserId(), mappings, cancellationToken);
         var options = new OpcoesValidacaoImportacao(
             request.InserirNovos,
             request.AtualizarExistentes,
@@ -352,6 +386,7 @@ public sealed class ImportacaoController : Controller
             aba.Nome);
         var context=await contextoValidacaoImportacaoService.PrepararAsync(request.ImportacaoId,companyId,GetCurrentUserId(),aba.Amostra,new(mappings),options,cancellationToken);
         var result=await validadorDadosImportacaoService.ValidarAsync(context,cancellationToken);
+        options = options with { QuantidadeUnidadesPreenchidasAutomaticamente = result.QuantidadeUnidadesPreenchidasAutomaticamente };
         if(request.PersistirResultado)
         {
             if(request.ModeloImportacaoId.HasValue) await historicoImportacaoService.AssociarModeloAsync(companyId,request.ImportacaoId,request.ModeloImportacaoId.Value,GetCurrentUserId(),cancellationToken);

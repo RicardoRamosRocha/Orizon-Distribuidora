@@ -104,9 +104,12 @@ public sealed class ImportacaoFluxoContractTests
         var repositoryRoot = FindRepositoryRoot();
         var view = File.ReadAllText(Path.Combine(repositoryRoot,
             "src", "Orizon.Distribuidora.Web", "Areas", "Admin", "Views", "Importacao", "Mapeamento.cshtml"));
+        var script = File.ReadAllText(Path.Combine(repositoryRoot,
+            "src", "Orizon.Distribuidora.Web", "wwwroot", "js", "importacao-mapeamento.js"));
 
-        Assert.Contains("name=\"Mapeamentos[@campo.Chave]\"", view);
-        Assert.Contains("form=\"validationForm\"", view);
+        Assert.Contains("data-mapping-inputs", view);
+        Assert.Contains("id=\"validationForm\"", view);
+        Assert.Contains("input.name = `Mapeamentos[${field}]`", script);
         Assert.DoesNotContain("MapeamentoJson", view);
     }
 

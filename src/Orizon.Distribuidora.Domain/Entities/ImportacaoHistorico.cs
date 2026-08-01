@@ -24,6 +24,7 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
         TipoArquivo = tipoArquivo;
         ModeloImportacaoId = modeloImportacaoId;
         Status = StatusImportacao.AguardandoProcessamento;
+        ConcurrencyToken = Guid.NewGuid();
     }
 
     public Guid? ModeloImportacaoId { get; private set; }
@@ -37,6 +38,8 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
     public long TamanhoArquivoBytes { get; private set; }
 
     public StatusImportacao Status { get; private set; }
+
+    public Guid ConcurrencyToken { get; private set; }
 
     public int TotalLinhas { get; private set; }
 
@@ -87,7 +90,13 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
 
     public void Iniciar()
     {
+        if (Status != StatusImportacao.AguardandoProcessamento)
+        {
+            throw new InvalidOperationException("A importação não pode iniciar o processamento no estado atual.");
+        }
+
         Status = StatusImportacao.EmProcessamento;
+        RenovarConcurrencyToken();
         IniciadoEm = DateTimeOffset.UtcNow;
     }
 
@@ -98,6 +107,11 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
         int linhasImportadas,
         string? observacoes = null)
     {
+        if (Status != StatusImportacao.EmProcessamento)
+        {
+            throw new InvalidOperationException("A importação não pode finalizar o processamento no estado atual.");
+        }
+
         if (totalLinhas < 0 || linhasValidas < 0 || linhasComErro < 0 || linhasImportadas < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(totalLinhas), "Os totais da importação não podem ser negativos.");
@@ -109,24 +123,54 @@ public sealed class ImportacaoHistorico : CompanyOwnedAuditableEntity
         LinhasImportadas = linhasImportadas;
         Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim();
         Status = linhasComErro > 0 ? StatusImportacao.ProcessadaComErros : StatusImportacao.ProcessadaComSucesso;
+        RenovarConcurrencyToken();
         FinalizadoEm = DateTimeOffset.UtcNow;
     }
 
     public void Cancelar(string? observacoes = null)
     {
+        if (!PodeCancelar(Status))
+        {
+            throw new InvalidOperationException("A importação não pode ser cancelada no estado atual.");
+        }
+
         Status = StatusImportacao.Cancelada;
+        RenovarConcurrencyToken();
         Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim();
         FinalizadoEm = DateTimeOffset.UtcNow;
     }
 
     public void RegistrarValidacao(int total, int validas, int erros, int avisos, int novos, int existentes, int atualizaveis, int duplicadas, int ignoradas, bool podeImportar, Guid? usuarioId, string opcoesJson)
     {
-        TotalLinhas=total;LinhasValidas=validas;LinhasComErro=erros;LinhasComAviso=avisos;ProdutosNovos=novos;ProdutosExistentes=existentes;ProdutosAtualizaveis=atualizaveis;LinhasDuplicadas=duplicadas;LinhasIgnoradas=ignoradas;UsuarioValidacaoId=usuarioId;OpcoesValidacaoJson=opcoesJson;IniciadoEm??=DateTimeOffset.UtcNow;FinalizadoEm=DateTimeOffset.UtcNow;Status=podeImportar?StatusImportacao.ProntaParaImportar:StatusImportacao.ValidacaoComErros;
+        if (!PodeValidar(Status))
+        {
+            throw new InvalidOperationException("A importação não pode ser validada no estado atual.");
+        }
+
+        TotalLinhas=total;LinhasValidas=validas;LinhasComErro=erros;LinhasComAviso=avisos;ProdutosNovos=novos;ProdutosExistentes=existentes;ProdutosAtualizaveis=atualizaveis;LinhasDuplicadas=duplicadas;LinhasIgnoradas=ignoradas;UsuarioValidacaoId=usuarioId;OpcoesValidacaoJson=opcoesJson;IniciadoEm??=DateTimeOffset.UtcNow;FinalizadoEm=DateTimeOffset.UtcNow;Status=podeImportar?StatusImportacao.ProntaParaImportar:StatusImportacao.ValidacaoComErros;RenovarConcurrencyToken();
     }
-    public Guid IniciarExecucao(Guid? usuarioId){if(Status!=StatusImportacao.ProntaParaImportar)throw new InvalidOperationException("A importação não está pronta para execução.");Status=StatusImportacao.Importando;UsuarioExecutorId=usuarioId;TokenExecucao=Guid.NewGuid();IniciadoEm=DateTimeOffset.UtcNow;FinalizadoEm=null;return TokenExecucao.Value;}
-    public void FinalizarExecucao(int processados,int inseridos,int atualizados,int semAlteracao,int ignorados,int bloqueados,int falhas){TotalLinhas=processados;ProdutosInseridos=inseridos;ProdutosAtualizados=atualizados;SemAlteracao=semAlteracao;LinhasIgnoradas=ignorados;ItensBloqueados=bloqueados;FalhasExecucao=falhas;LinhasImportadas=inseridos+atualizados;FinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Concluida:(inseridos+atualizados)>0?StatusImportacao.ConcluidaParcialmente:StatusImportacao.Falhou;TokenExecucao=null;}
-    public void IniciarRollback(Guid? usuarioId){if(Status is not(StatusImportacao.Concluida or StatusImportacao.ConcluidaParcialmente))throw new InvalidOperationException("A importação não permite rollback.");Status=StatusImportacao.RollbackEmAndamento;UsuarioRollbackId=usuarioId;RollbackIniciadoEm=DateTimeOffset.UtcNow;RollbackFinalizadoEm=null;}
-    public void FinalizarRollback(int removidos,int restaurados,int bloqueados,int falhas,string? observacoes){ProdutosRemovidosRollback=removidos;ProdutosRestauradosRollback=restaurados;ProdutosBloqueadosRollback=bloqueados;FalhasRollback=falhas;ObservacoesRollback=string.IsNullOrWhiteSpace(observacoes)?null:observacoes.Trim();RollbackFinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Revertida:(removidos+restaurados)>0?StatusImportacao.RevertidaParcialmente:StatusImportacao.RollbackFalhou;}
+    public Guid IniciarExecucao(Guid? usuarioId){if(Status!=StatusImportacao.ProntaParaImportar)throw new InvalidOperationException("A importação não está pronta para execução.");Status=StatusImportacao.Importando;RenovarConcurrencyToken();UsuarioExecutorId=usuarioId;TokenExecucao=Guid.NewGuid();IniciadoEm=DateTimeOffset.UtcNow;FinalizadoEm=null;return TokenExecucao.Value;}
+    public void FinalizarExecucao(int processados,int inseridos,int atualizados,int semAlteracao,int ignorados,int bloqueados,int falhas){if(Status!=StatusImportacao.Importando)throw new InvalidOperationException("A importação não está em execução.");TotalLinhas=processados;ProdutosInseridos=inseridos;ProdutosAtualizados=atualizados;SemAlteracao=semAlteracao;LinhasIgnoradas=ignorados;ItensBloqueados=bloqueados;FalhasExecucao=falhas;LinhasImportadas=inseridos+atualizados;FinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Concluida:(inseridos+atualizados)>0?StatusImportacao.ConcluidaParcialmente:StatusImportacao.Falhou;RenovarConcurrencyToken();TokenExecucao=null;}
+    public void IniciarRollback(Guid? usuarioId){if(Status is not(StatusImportacao.Concluida or StatusImportacao.ConcluidaParcialmente))throw new InvalidOperationException("A importação não permite rollback.");Status=StatusImportacao.RollbackEmAndamento;RenovarConcurrencyToken();UsuarioRollbackId=usuarioId;RollbackIniciadoEm=DateTimeOffset.UtcNow;RollbackFinalizadoEm=null;}
+    public void FinalizarRollback(int removidos,int restaurados,int bloqueados,int falhas,string? observacoes){if(Status!=StatusImportacao.RollbackEmAndamento)throw new InvalidOperationException("O rollback da importação não está em execução.");ProdutosRemovidosRollback=removidos;ProdutosRestauradosRollback=restaurados;ProdutosBloqueadosRollback=bloqueados;FalhasRollback=falhas;ObservacoesRollback=string.IsNullOrWhiteSpace(observacoes)?null:observacoes.Trim();RollbackFinalizadoEm=DateTimeOffset.UtcNow;Status=falhas==0&&bloqueados==0?StatusImportacao.Revertida:(removidos+restaurados)>0?StatusImportacao.RevertidaParcialmente:StatusImportacao.RollbackFalhou;RenovarConcurrencyToken();}
+
+    private void RenovarConcurrencyToken() => ConcurrencyToken = Guid.NewGuid();
+
+    private static bool PodeCancelar(StatusImportacao status) => status is
+        StatusImportacao.AguardandoProcessamento or
+        StatusImportacao.EmProcessamento or
+        StatusImportacao.ProcessadaComSucesso or
+        StatusImportacao.ProcessadaComErros or
+        StatusImportacao.Validando or
+        StatusImportacao.ValidacaoConcluida or
+        StatusImportacao.ValidacaoComErros or
+        StatusImportacao.ProntaParaImportar;
+
+    private static bool PodeValidar(StatusImportacao status) => status is
+        StatusImportacao.AguardandoProcessamento or
+        StatusImportacao.ValidacaoConcluida or
+        StatusImportacao.ValidacaoComErros or
+        StatusImportacao.ProntaParaImportar;
 
     private void SetArquivo(string nomeArquivo, long tamanhoArquivoBytes)
     {

@@ -14,7 +14,8 @@ public sealed record SugestaoMapeamento(string Campo, string Coluna, double Conf
 public sealed record MapeamentoColunasImportacao(
     IReadOnlyDictionary<string, string> Colunas,
     IReadOnlyDictionary<string, double>? Confiancas = null,
-    IReadOnlyDictionary<string, IReadOnlyList<string>>? Conflitos = null)
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? Conflitos = null,
+    IReadOnlyDictionary<string, RecognitionResult>? Reconhecimentos = null)
 {
     public static IReadOnlyDictionary<string, string> Canonicalizar(
         IReadOnlyDictionary<string, string> colunas)

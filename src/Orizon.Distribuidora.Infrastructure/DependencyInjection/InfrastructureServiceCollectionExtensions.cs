@@ -72,6 +72,8 @@ public static class InfrastructureServiceCollectionExtensions
             options.SlidingExpiration = true;
         });
 
+        services.AddMemoryCache();
+
         services.AddScoped<IImportacaoProdutosService, ImportacaoProdutosService>();
         services.AddScoped<IExecutorImportacaoProdutosService, ExecutorImportacaoProdutosService>();
         services.AddScoped<IExportacaoImportacaoService, ExportacaoImportacaoService>();
@@ -85,7 +87,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IValidadorImportacaoService, ValidadorImportacaoService>();
         services.AddScoped<IValidadorDadosImportacaoService, ValidadorDadosImportacaoService>();
         services.AddScoped<IContextoValidacaoImportacaoService, ContextoValidacaoImportacaoService>();
+        services.AddSingleton<ISimilarityEngine, SimilarityEngine>();
         services.AddScoped<IMapeadorColunasService, MapeadorColunasService>();
+        services.AddScoped<IHeaderSynonymProvider, HeaderSynonymProvider>();
+        services.AddScoped<IHeaderLearningService, HeaderLearningService>();
+        services.AddScoped<IRecommendationService, RecommendationService>();
         services.AddScoped<IModeloImportacaoService, ModeloImportacaoService>();
         services.AddScoped<IHistoricoImportacaoService, HistoricoImportacaoService>();
         services.AddScoped<IStockService, StockService>();

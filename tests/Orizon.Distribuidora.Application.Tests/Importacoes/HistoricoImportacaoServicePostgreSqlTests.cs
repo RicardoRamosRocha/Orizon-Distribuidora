@@ -37,6 +37,11 @@ public sealed class HistoricoImportacaoServicePostgreSqlTests
         db.Companies.Add(company);
         await db.SaveChangesAsync();
         var companyId = company.Id;
+        var unit = new UnitOfMeasure(companyId, "Unidade", "UN", null, 0, false);
+        var ignoredProduct = new Product(companyId, "P002", "Produto ignorado", unit.Id, ProductType.Own);
+        db.UnitsOfMeasure.Add(unit);
+        db.Products.Add(ignoredProduct);
+        await db.SaveChangesAsync();
         var service = new HistoricoImportacaoService(db);
         var history = await service.RegistrarAsync(
             companyId,
@@ -48,6 +53,9 @@ public sealed class HistoricoImportacaoServicePostgreSqlTests
         var error = new ErroValidacaoImportacao(
             3, "codigo", null, "IMP_ERRO", "Erro de teste.",
             SeveridadeValidacao.Erro, DateTimeOffset.UtcNow);
+        var ignoredWarning = new ErroValidacaoImportacao(
+            4, "precoVenda", "0", "IMP_PRECO_ZERADO", "Aviso em linha ignorada.",
+            SeveridadeValidacao.Aviso, DateTimeOffset.UtcNow);
         var lines = new[]
         {
             new ResultadoValidacaoLinha(
@@ -59,10 +67,23 @@ public sealed class HistoricoImportacaoServicePostgreSqlTests
                 3, StatusValidacaoLinha.Invalida, null, null,
                 new Dictionary<string, object?>(),
                 new Dictionary<string, string?> { ["codigo"] = null },
-                TipoOperacaoImportacao.Bloquear, null, [error], [], [], false, false)
+                TipoOperacaoImportacao.Bloquear, null, [error], [], [], false, false),
+            new ResultadoValidacaoLinha(
+                4, StatusValidacaoLinha.Ignorada, "P002", "Produto ignorado",
+                new Dictionary<string, object?> { ["codigo"] = "P002", ["descricao"] = "Produto ignorado" },
+                new Dictionary<string, string?> { ["codigo"] = "P002", ["descricao"] = "Produto ignorado" },
+                TipoOperacaoImportacao.Ignorar,
+                new ProdutoExistenteImportacao(ignoredProduct.Id, ignoredProduct.InternalCode, ignoredProduct.Name,
+                    ignoredProduct.Barcode, ignoredProduct.CostPrice, ignoredProduct.SalePrice,
+                    ignoredProduct.UnitOfMeasureId, ignoredProduct.IsActive),
+                [], [ignoredWarning], [], false, false),
+            new ResultadoValidacaoLinha(
+                5, StatusValidacaoLinha.Ignorada, null, null,
+                new Dictionary<string, object?>(), new Dictionary<string, string?>(),
+                TipoOperacaoImportacao.Ignorar, null, [], [], [], false, false)
         };
         var result = new ResultadoValidacaoImportacao(
-            2, 1, 1, 1, 1, 0, 0, 0, 0, true, lines, DateTimeOffset.UtcNow);
+            4, 1, 1, 2, 1, 0, 0, 0, 2, true, lines, DateTimeOffset.UtcNow);
 
         try
         {
@@ -81,13 +102,27 @@ public sealed class HistoricoImportacaoServicePostgreSqlTests
                 .ToListAsync();
 
             Assert.Equal(StatusImportacao.ProntaParaImportar, savedHistory.Status);
-            Assert.Equal(2, savedHistory.TotalLinhas);
-            Assert.Equal(2, savedItems.Count);
+            Assert.Equal(4, savedHistory.TotalLinhas);
+            Assert.Equal(4, savedItems.Count);
             Assert.Contains(savedItems, x => x.Status == StatusLinhaImportacao.Valida);
             Assert.Contains(savedItems, x => x.Status == StatusLinhaImportacao.ComErro);
-            Assert.Equal(2, savedIssues.Count);
+            Assert.Equal(2, savedItems.Count(x => x.Status == StatusLinhaImportacao.Ignorada));
+            var savedIgnoredProduct = Assert.Single(savedItems, x => x.NumeroLinha == 4);
+            Assert.Equal(ignoredProduct.Id, savedIgnoredProduct.ProdutoId);
+            Assert.Contains("P002", savedIgnoredProduct.DadosNormalizadosJson);
+            Assert.Contains("__produtoExistenteId", savedIgnoredProduct.DadosNormalizadosJson);
+            Assert.Equal(3, savedIssues.Count);
             Assert.Contains(savedIssues, x => x.Severidade == SeveridadeValidacao.Aviso);
             Assert.Contains(savedIssues, x => x.Severidade == SeveridadeValidacao.Erro);
+
+            var persistedValidation = await service.ObterValidacaoAsync(companyId, history.Id, null, null, 1);
+            Assert.NotNull(persistedValidation);
+            var ignoredWithWarning = Assert.Single(persistedValidation.Linhas, x => x.NumeroLinha == 4);
+            Assert.Equal(StatusValidacaoLinha.Ignorada, ignoredWithWarning.Status);
+            Assert.Equal(TipoOperacaoImportacao.Ignorar, ignoredWithWarning.Operacao);
+            Assert.Equal("P002", ignoredWithWarning.CodigoProduto);
+            Assert.Equal("Produto ignorado", ignoredWithWarning.Descricao);
+            Assert.NotEmpty(ignoredWithWarning.Avisos);
         }
         finally
         {

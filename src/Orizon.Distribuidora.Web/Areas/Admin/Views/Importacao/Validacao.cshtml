@@ -43,7 +43,7 @@
     </header>
 
     <ol class="import-steps" aria-label="Progresso da importação">
-        @foreach (var item in new[] { ("1", "Upload"), ("2", "Conferência"), ("3", "Mapeamento"), ("4", "Validação"), ("5", "Execução"), ("6", "Resultado") })
+        @foreach (var item in new[] { ("1", "Upload"), ("2", "Reconhecimento"), ("3", "Revisão"), ("4", "Validação"), ("5", "Execução"), ("6", "Resultado") })
         {
             <li class="@(item.Item1 == "4" ? "current" : int.Parse(item.Item1) < 4 ? "done" : "")">
                 <span>@item.Item1</span>@item.Item2
@@ -60,7 +60,8 @@
             ("Atualizações", Model.Resultado.QuantidadeAtualizaveis),
             ("Com avisos", Model.Resultado.QuantidadeComAviso),
             ("Inválidas", Model.Resultado.QuantidadeComErro),
-            ("Ignoradas", Model.Resultado.QuantidadeIgnoradas)
+            ("Ignoradas", Model.Resultado.QuantidadeIgnoradas),
+            ("Unidades preenchidas automaticamente", Model.Resultado.QuantidadeUnidadesPreenchidasAutomaticamente)
         })
         {
             <article><span>@card.Item1</span><strong>@card.Item2</strong></article>

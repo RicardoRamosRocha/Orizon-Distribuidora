@@ -27,22 +27,25 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                 await CompleteHistoryAsync(importacaoId, empresaId, ct); return (await ObterResultadoAsync(importacaoId, empresaId, ct))!;
             }
 
-            var lastLine = 0;
-            while (true)
+            if (options.PermitirImportacaoParcial)
             {
-                var lineNumbers = await db.ImportacaoItens.AsNoTracking().Where(x => x.CompanyId == empresaId && x.ImportacaoHistoricoId == importacaoId && x.NumeroLinha > lastLine)
-                    .OrderBy(x => x.NumeroLinha).Select(x => x.NumeroLinha).Take(options.PermitirImportacaoParcial ? BatchSize : 10_000).ToListAsync(ct);
-                if (lineNumbers.Count == 0) break; lastLine = lineNumbers[^1];
-                await ProcessBatchAsync(importacaoId, empresaId, usuarioId, options, lineNumbers, ct);
-                if (!options.PermitirImportacaoParcial) break;
+                var lastLine = 0;
+                while (true)
+                {
+                    var lineNumbers = await db.ImportacaoItens.AsNoTracking().Where(x => x.CompanyId == empresaId && x.ImportacaoHistoricoId == importacaoId && x.NumeroLinha > lastLine)
+                        .OrderBy(x => x.NumeroLinha).Select(x => x.NumeroLinha).Take(BatchSize).ToListAsync(ct);
+                    if (lineNumbers.Count == 0) break; lastLine = lineNumbers[^1];
+                    await ProcessBatchAsync(importacaoId, empresaId, usuarioId, options, lineNumbers, ct);
+                }
             }
+            else await ProcessAtomicImportAsync(importacaoId, empresaId, usuarioId, options, ct);
             await CompleteHistoryAsync(importacaoId, empresaId, ct);
             return (await ObterResultadoAsync(importacaoId, empresaId, ct))!;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Falha geral na importação {ImportId}", importacaoId);
-            db.ChangeTracker.Clear(); await CompleteHistoryAsync(importacaoId, empresaId, ct, fatalFailure: true);
+            db.ChangeTracker.Clear(); await CompleteHistoryAsync(importacaoId, empresaId, CancellationToken.None, fatalFailure: true);
             throw ex is ImportacaoExecucaoException ? ex : new ImportacaoExecucaoException("Não foi possível concluir a importação. Os lotes já confirmados foram preservados e os contadores recalculados.");
         }
     }
@@ -61,6 +64,7 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                 if (history.Status == StatusImportacao.Importando) throw new ImportacaoExecucaoException("Esta importação já está sendo executada.");
                 if (string.IsNullOrWhiteSpace(history.OpcoesValidacaoJson)) throw new ImportacaoExecucaoException("As opções validadas da importação não estão disponíveis.");
                 history.IniciarExecucao(user);
+                history.UpdatedBy = user;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
             }
@@ -71,6 +75,16 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
             }
         });
         db.ChangeTracker.Clear();
+    }
+
+    private async Task ProcessAtomicImportAsync(Guid importId, Guid company, Guid? user, OpcoesValidacaoImportacao options, CancellationToken ct)
+    {
+        var lines = await db.ImportacaoItens.AsNoTracking()
+            .Where(x => x.CompanyId == company && x.ImportacaoHistoricoId == importId)
+            .OrderBy(x => x.NumeroLinha)
+            .Select(x => x.NumeroLinha)
+            .ToListAsync(ct);
+        if (lines.Count > 0) await ProcessBatchAsync(importId, company, user, options, lines, ct);
     }
 
     private async Task ProcessBatchAsync(Guid importId, Guid company, Guid? user, OpcoesValidacaoImportacao options, IReadOnlyList<int> lines, CancellationToken ct)
@@ -84,7 +98,9 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 try
                 {
-                    var items = await db.ImportacaoItens.Where(x => x.CompanyId == company && x.ImportacaoHistoricoId == importId && lines.Contains(x.NumeroLinha)).OrderBy(x => x.NumeroLinha).ToListAsync(ct);
+                    foreach (var batchLines in lines.Chunk(BatchSize))
+                    {
+                    var items = await db.ImportacaoItens.Where(x => x.CompanyId == company && x.ImportacaoHistoricoId == importId && batchLines.Contains(x.NumeroLinha)).OrderBy(x => x.NumeroLinha).ToListAsync(ct);
                     var data = items.Where(x => x.Status == StatusLinhaImportacao.Valida && !string.IsNullOrWhiteSpace(x.DadosNormalizadosJson)).ToDictionary(x => x.Id, Parse);
                     var codes = data.Values.Select(x => Text(x, "codigo")).Where(x => x is not null).Distinct().ToList();
                     var barcodes = data.Values.Select(x => Text(x, "codigoBarras")).Where(x => x is not null).Distinct().ToList();
@@ -101,6 +117,7 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                     foreach (var item in items)
                     {
                         ct.ThrowIfCancellationRequested();
+                        item.UpdatedBy = user;
                         if (item.Status == StatusLinhaImportacao.ComErro) { item.PrepararExecucao(OperacaoExecucaoImportacao.Bloquear); item.ConcluirExecucao(StatusLinhaImportacao.Bloqueada, null, "Linha bloqueada pela validação."); continue; }
                         if (item.Status == StatusLinhaImportacao.Ignorada) { item.PrepararExecucao(OperacaoExecucaoImportacao.Ignorar); item.ConcluirExecucao(StatusLinhaImportacao.Ignorada, null, "Linha ignorada."); continue; }
                         if (!data.TryGetValue(item.Id, out var row)) { item.PrepararExecucao(OperacaoExecucaoImportacao.Bloquear); item.ConcluirExecucao(StatusLinhaImportacao.Bloqueada, null, "Dados validados indisponíveis."); continue; }
@@ -124,6 +141,8 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                             product!.Id, inserting ? "Produto inserido." : changes.Count == 0 ? "Nenhuma alteração identificada." : "Produto atualizado.", changes.Count == 0 ? null : JsonSerializer.Serialize(changes));
                     }
                     await db.SaveChangesAsync(ct);
+                    db.ChangeTracker.Clear();
+                    }
                     await tx.CommitAsync(ct);
                 }
                 catch
@@ -145,6 +164,7 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
                 var failed = await db.ImportacaoItens.Where(x => x.CompanyId == company && x.ImportacaoHistoricoId == importId && lines.Contains(x.NumeroLinha)).ToListAsync(ct);
                 foreach (var item in failed)
                 {
+                    item.UpdatedBy = user;
                     if (item.Status == StatusLinhaImportacao.ComErro) { item.PrepararExecucao(OperacaoExecucaoImportacao.Bloquear); item.ConcluirExecucao(StatusLinhaImportacao.Bloqueada, null, "Linha bloqueada pela validação."); }
                     else if (item.Status == StatusLinhaImportacao.Ignorada) { item.PrepararExecucao(OperacaoExecucaoImportacao.Ignorar); item.ConcluirExecucao(StatusLinhaImportacao.Ignorada, null, "Linha ignorada."); }
                     else { item.PrepararExecucao(OperacaoExecucaoImportacao.Bloquear); item.ConcluirExecucao(StatusLinhaImportacao.Falhou, null, "O lote foi revertido por conflito de persistência."); }
@@ -184,9 +204,8 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
     public async Task<ResultadoExecucaoImportacao?> ObterResultadoAsync(Guid id, Guid company, CancellationToken ct = default)
     {
         var h = await db.ImportacoesHistorico.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == company, ct); if (h is null) return null;
-        var items = await db.ImportacaoItens.AsNoTracking().Where(x => x.ImportacaoHistoricoId == id && x.CompanyId == company).OrderBy(x => x.NumeroLinha).ToListAsync(ct);
         var warnings = await db.ImportacaoErros.AsNoTracking().CountAsync(x => x.CompanyId == company && x.ImportacaoHistoricoId == id && x.Severidade == SeveridadeValidacao.Aviso, ct);
-        return Build(h, items, h.IniciadoEm ?? h.CreatedAt, warnings);
+        return Build(h, [], h.IniciadoEm ?? h.CreatedAt, warnings);
     }
 
     public async Task<PaginaResultadoExecucao?> ObterResultadoPaginaAsync(Guid id, Guid company, string? filtro, string? busca, int pagina, int tamanhoPagina = 50, CancellationToken ct = default)
@@ -220,6 +239,28 @@ public sealed class ExecutorImportacaoProdutosService(ApplicationDbContext db, I
             controls && DecimalValue(d, "estoqueInicial", 0) > 0 ? options.DepositoId : p.DefaultWarehouseId, controls && DecimalValue(d, "estoqueInicial", 0) > 0 ? options.LocalInternoId : p.DefaultWarehouseLocationId,
             Get("ncm", p.Ncm), p.Cest, DecimalValue(d, "precoCompra", p.CostPrice), DecimalValue(d, "precoVenda", p.SalePrice), p.CommissionType, p.CommissionValue, p.PriceValidUntil, p.MinimumStock, Get("observacoes", p.Notes));
     }
-    private static Dictionary<string, string?> Snapshot(Product p) => new() { ["Descrição"] = p.Name, ["Descrição complementar"] = p.Description, ["Código de barras"] = p.Barcode, ["Preço de custo"] = p.CostPrice.ToString(), ["Preço de venda"] = p.SalePrice.ToString(), ["Unidade"] = p.UnitOfMeasureId.ToString(), ["Tipo"] = p.ProductType.ToString(), ["Categoria"] = p.CategoryId?.ToString(), ["Subcategoria"] = p.SubcategoryId?.ToString(), ["Marca"] = p.BrandId?.ToString(), ["Grupo"] = p.ProductGroupId?.ToString(), ["Fornecedor"] = p.MainSupplierId?.ToString(), ["Parceiro"] = p.PartnerId?.ToString(), ["NCM"] = p.Ncm, ["Status"] = p.IsActive.ToString(), ["Controla estoque"] = p.ControlsStock.ToString(), ["Observações"] = p.Notes };
+    private static Dictionary<string, string?> Snapshot(Product p) => new()
+    {
+        ["Descrição"] = p.Name,
+        ["Descrição complementar"] = p.Description,
+        ["Código de barras"] = p.Barcode,
+        ["Preço de custo"] = p.CostPrice.ToString(),
+        ["Preço de venda"] = p.SalePrice.ToString(),
+        ["Unidade"] = p.UnitOfMeasureId.ToString(),
+        ["Tipo"] = p.ProductType.ToString(),
+        ["Categoria"] = p.CategoryId?.ToString(),
+        ["Subcategoria"] = p.SubcategoryId?.ToString(),
+        ["Marca"] = p.BrandId?.ToString(),
+        ["Grupo"] = p.ProductGroupId?.ToString(),
+        ["Fornecedor"] = p.MainSupplierId?.ToString(),
+        ["Parceiro"] = p.PartnerId?.ToString(),
+        ["Depósito padrão"] = p.DefaultWarehouseId?.ToString(),
+        ["Local interno padrão"] = p.DefaultWarehouseLocationId?.ToString(),
+        ["Estoque mínimo"] = p.MinimumStock?.ToString(),
+        ["NCM"] = p.Ncm,
+        ["Status"] = p.IsActive.ToString(),
+        ["Controla estoque"] = p.ControlsStock.ToString(),
+        ["Observações"] = p.Notes
+    };
     private static ResultadoExecucaoImportacao Build(ImportacaoHistorico h, IReadOnlyList<ImportacaoItem> items, DateTimeOffset start, int warnings) => new(h.Id, h.TotalLinhas, h.ProdutosInseridos, h.ProdutosAtualizados, h.SemAlteracao, h.LinhasIgnoradas, h.ItensBloqueados, h.FalhasExecucao, warnings, start, h.FinalizadoEm ?? DateTimeOffset.UtcNow, h.Status, [], items.Select(i => { var data = string.IsNullOrWhiteSpace(i.DadosNormalizadosJson) ? [] : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(i.DadosNormalizadosJson) ?? []; return new ResultadoExecucaoItem(i.NumeroLinha, Text(data, "codigo"), Text(data, "descricao"), i.OperacaoExecucao, i.Status, i.ProdutoId, i.MensagemExecucao); }).ToList());
 }

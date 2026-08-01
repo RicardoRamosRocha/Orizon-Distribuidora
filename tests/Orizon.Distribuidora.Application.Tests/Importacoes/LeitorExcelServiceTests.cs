@@ -87,6 +87,31 @@ public sealed class LeitorExcelServiceTests
     }
 
     [Fact]
+    public async Task LerAsync_NaValidacaoDevePercorrerSomenteAbaSelecionada()
+    {
+        using var stream = CreateWorkbook(workbook =>
+        {
+            var ignored = workbook.Worksheets.Add("Ignorada");
+            ignored.Cell(1, 1).Value = "Codigo";
+            for (var line = 2; line <= 10_002; line++) ignored.Cell(line, 1).Value = $"I{line}";
+
+            var selected = workbook.Worksheets.Add("Produtos");
+            selected.Cell(1, 1).Value = "Codigo";
+            selected.Cell(2, 1).Value = "P001";
+        });
+
+        var result = await new LeitorExcelService().LerAsync(
+            new ArquivoImportacaoExcel(stream, "produtos.xlsx", stream.Length),
+            "Produtos",
+            tamanhoAmostra: 10_000);
+
+        Assert.Equal("Produtos", result.AbaSelecionada);
+        Assert.Single(result.Abas);
+        Assert.Single(result.Linhas);
+        Assert.Equal("P001", result.Linhas[0].Valores["Codigo"]);
+    }
+
+    [Fact]
     public async Task LerAsync_DeveRejeitarWorkbookInvalido()
     {
         await using var stream = new MemoryStream("conteúdo inválido"u8.ToArray());

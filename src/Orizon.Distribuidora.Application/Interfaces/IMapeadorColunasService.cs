@@ -7,6 +7,11 @@ public interface IMapeadorColunasService
     Task<MapeamentoColunasImportacao> MapearAsync(
         IReadOnlyList<string> cabecalhos,
         CancellationToken cancellationToken = default);
+
+    Task<MapeamentoColunasImportacao> MapearAsync(
+        IReadOnlyList<string> cabecalhos,
+        Guid companyId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IModeloImportacaoService

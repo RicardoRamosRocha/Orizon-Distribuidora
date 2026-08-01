@@ -33,6 +33,17 @@ public sealed class LeitorExcelService : ILeitorExcelService
             }
 
             var sampleSize = Math.Clamp(tamanhoAmostra, 0, MaxDataRows);
+            if (sampleSize == MaxDataRows && !string.IsNullOrWhiteSpace(abaSelecionada))
+            {
+                var worksheet = worksheets.FirstOrDefault(item =>
+                    string.Equals(item.Name, abaSelecionada, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new ImportacaoExcelException($"A planilha '{abaSelecionada}' nÃ£o foi encontrada no arquivo Excel.");
+                cancellationToken.ThrowIfCancellationRequested();
+                var abaSelecionadaCompleta = LerAba(worksheet, sampleSize)
+                    ?? throw new ImportacaoExcelException($"A planilha '{abaSelecionada}' nÃ£o foi encontrada no arquivo Excel.");
+                return Task.FromResult(new PlanilhaImportada(abaSelecionadaCompleta.Nome, [abaSelecionadaCompleta]));
+            }
+
             var abas = new List<AbaPlanilhaImportada>();
 
             foreach (var worksheet in worksheets)

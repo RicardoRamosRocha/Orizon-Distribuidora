@@ -17,6 +17,7 @@ public sealed class ImportacaoHistoricoConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.TipoArquivo).HasConversion<int>().IsRequired();
         builder.Property(entity => entity.TamanhoArquivoBytes).IsRequired();
         builder.Property(entity => entity.Status).HasConversion<int>().IsRequired();
+        builder.Property(entity => entity.ConcurrencyToken).IsConcurrencyToken().IsRequired();
         builder.Property(entity => entity.TotalLinhas).IsRequired();
         builder.Property(entity => entity.LinhasValidas).IsRequired();
         builder.Property(entity => entity.LinhasComErro).IsRequired();

@@ -74,6 +74,10 @@ public sealed class ApplicationDbContext
 
     public DbSet<ModeloImportacao> ModelosImportacao => Set<ModeloImportacao>();
 
+    public DbSet<HeaderSynonym> HeaderSynonyms => Set<HeaderSynonym>();
+
+    public DbSet<Recommendation> Recommendations => Set<Recommendation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

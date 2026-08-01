@@ -90,13 +90,11 @@ public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoSer
                     foreach (var linha in lote)
                     {
                         var item = new ImportacaoItem(companyId, importacaoId, linha.NumeroLinha, JsonSerializer.Serialize(linha.DadosOriginais)) { CreatedBy = usuarioId };
-                        if (linha.Status == StatusValidacaoLinha.Ignorada) item.Ignorar();
+                        var normalizados = new Dictionary<string, object?>(linha.ValoresConvertidos) { ["__operacao"] = linha.Operacao.ToString(), ["__produtoExistenteId"] = linha.ProdutoExistente?.Id };
+                        if (linha.Operacao == TipoOperacaoImportacao.Ignorar)
+                            item.Ignorar(JsonSerializer.Serialize(normalizados), linha.ProdutoExistente?.Id);
                         else if (linha.Erros.Count > 0) item.MarcarComErro();
-                        else
-                        {
-                            var normalizados = new Dictionary<string, object?>(linha.ValoresConvertidos) { ["__operacao"] = linha.Operacao.ToString(), ["__produtoExistenteId"] = linha.ProdutoExistente?.Id };
-                            item.MarcarComoValida(JsonSerializer.Serialize(normalizados));
-                        }
+                        else item.MarcarComoValida(JsonSerializer.Serialize(normalizados));
                         dbContext.ImportacaoItens.Add(item);
                         foreach (var p in linha.Erros.Concat(linha.Avisos))
                         {
@@ -134,6 +132,7 @@ public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoSer
     {
         var historico = await dbContext.ImportacoesHistorico.AsNoTracking().FirstOrDefaultAsync(x => x.CompanyId == companyId && x.Id == importacaoId, cancellationToken);
         if (historico is null || string.IsNullOrWhiteSpace(historico.OpcoesValidacaoJson)) return null;
+        var opcoes = JsonSerializer.Deserialize<OpcoesValidacaoImportacao>(historico.OpcoesValidacaoJson);
         var query = dbContext.ImportacaoItens.AsNoTracking().Where(x => x.CompanyId == companyId && x.ImportacaoHistoricoId == importacaoId);
         query = filtro switch
         {
@@ -166,14 +165,15 @@ public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoSer
             var erros = lineIssues.Where(x => x.Severidade == SeveridadeValidacao.Erro).Select(ToValidationIssue).ToList();
             var avisos = lineIssues.Where(x => x.Severidade == SeveridadeValidacao.Aviso).Select(ToValidationIssue).ToList();
             var operation = normalized.TryGetValue("__operacao", out var operationValue) && Enum.TryParse<TipoOperacaoImportacao>(operationValue.ToString(), out var parsed) ? parsed : item.Status == StatusLinhaImportacao.Ignorada ? TipoOperacaoImportacao.Ignorar : erros.Count > 0 ? TipoOperacaoImportacao.Bloquear : TipoOperacaoImportacao.Inserir;
-            var status = erros.Any(x => x.Codigo.StartsWith("IMP_DUPLICIDADE", StringComparison.Ordinal)) ? StatusValidacaoLinha.Duplicada : erros.Count > 0 ? StatusValidacaoLinha.Invalida : avisos.Count > 0 ? StatusValidacaoLinha.ComAviso : item.Status == StatusLinhaImportacao.Ignorada ? StatusValidacaoLinha.Ignorada : StatusValidacaoLinha.Valida;
+            var status = erros.Any(x => x.Codigo.StartsWith("IMP_DUPLICIDADE", StringComparison.Ordinal)) ? StatusValidacaoLinha.Duplicada : erros.Count > 0 ? StatusValidacaoLinha.Invalida : item.Status == StatusLinhaImportacao.Ignorada ? StatusValidacaoLinha.Ignorada : avisos.Count > 0 ? StatusValidacaoLinha.ComAviso : StatusValidacaoLinha.Valida;
             var converted = normalized.Where(x => !x.Key.StartsWith("__", StringComparison.Ordinal)).ToDictionary(x => x.Key, x => (object?)x.Value);
             var code = normalized.TryGetValue("codigo", out var c) ? c.ToString() : null; var description = normalized.TryGetValue("descricao", out var d) ? d.ToString() : null;
             return new ResultadoValidacaoLinha(item.NumeroLinha, status, code, description, converted, original, operation, null, erros, avisos, [], erros.Count == 0 && operation is TipoOperacaoImportacao.Inserir or TipoOperacaoImportacao.Atualizar, operation == TipoOperacaoImportacao.Atualizar);
         }).ToList();
         var result = new ResultadoValidacaoImportacao(historico.TotalLinhas, historico.LinhasValidas, historico.LinhasComErro, historico.LinhasComAviso,
             historico.ProdutosNovos, historico.ProdutosExistentes, historico.ProdutosAtualizaveis, historico.LinhasDuplicadas, historico.LinhasIgnoradas,
-            historico.Status == StatusImportacao.ProntaParaImportar, linhas, historico.FinalizadoEm ?? historico.UpdatedAt ?? historico.CreatedAt);
+            historico.Status == StatusImportacao.ProntaParaImportar, linhas, historico.FinalizadoEm ?? historico.UpdatedAt ?? historico.CreatedAt,
+            opcoes?.QuantidadeUnidadesPreenchidasAutomaticamente ?? 0);
         return new(result, linhas, pagina, pages, total);
     }
 

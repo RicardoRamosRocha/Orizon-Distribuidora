@@ -110,6 +110,25 @@ public sealed class ImportacaoMapeamentoViewModel
     public Guid? ModeloCarregadoId { get; set; }
     public IReadOnlyList<StockOptionDto> Depositos { get; set; } = [];
     public IReadOnlyList<StockOptionDto> LocaisInternos { get; set; } = [];
+    public IReadOnlyList<ImportacaoReconhecimentoColunaViewModel> Reconhecimentos { get; set; } = [];
+    public int ColunasReconhecidas => Reconhecimentos.Count(item => !string.IsNullOrWhiteSpace(item.CampoDestino));
+    public int ColunasAprendidas => Reconhecimentos.Count(item => item.Aprendido);
+    public int ColunasPendentes => Reconhecimentos.Count(item => item.ExigeRevisao);
+    public double ConfiancaGeral => ColunasReconhecidas == 0
+        ? 0
+        : Reconhecimentos.Where(item => !string.IsNullOrWhiteSpace(item.CampoDestino)).Average(item => item.Confianca);
+}
+
+public sealed class ImportacaoReconhecimentoColunaViewModel
+{
+    public string Cabecalho { get; set; } = string.Empty;
+    public string? CampoDestino { get; set; }
+    public string? CampoNome { get; set; }
+    public RecognitionStrategy? Estrategia { get; set; }
+    public double Confianca { get; set; }
+    public bool Aprendido { get; set; }
+    public bool ExigeRevisao { get; set; }
+    public IReadOnlyList<string> Conflitos { get; set; } = [];
 }
 
 public sealed class SalvarModeloImportacaoRequest

@@ -5,16 +5,30 @@
   const data = JSON.parse(root.querySelector('[data-import-data]').textContent);
   const rows = [...root.querySelectorAll('.map-row')];
   const validationForm = root.querySelector('[data-validation-form]');
+  const mappingInputs = root.querySelector('[data-mapping-inputs]');
   const token = root.querySelector('input[name="__RequestVerificationToken"]').value;
   const notice = root.querySelector('[data-import-notice]');
   const loading = root.querySelector('[data-loading]');
 
+  const selectedField = row => {
+    const value = row.querySelector('select')?.value || '';
+    return value === '__pending' ? '' : value;
+  };
+
   const mapping = () => Object.fromEntries(
-    rows
-      .filter(row => row.dataset.available === 'true')
-      .map(row => [row.dataset.field, row.querySelector('select').value])
-      .filter(([, value]) => value)
+    rows.map(row => [selectedField(row), row.dataset.header]).filter(([field]) => field)
   );
+
+  const syncMappingInputs = () => {
+    mappingInputs.replaceChildren();
+    for (const [field, header] of Object.entries(mapping())) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = `Mapeamentos[${field}]`;
+      input.value = header;
+      mappingInputs.append(input);
+    }
+  };
 
   const payload = () => ({
     nome: '',
@@ -30,93 +44,122 @@
     notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  const setText = (selector, value) => {
+    const element = root.querySelector(selector);
+    if (element) element.textContent = value;
+  };
+
   const refresh = () => {
-    const used = new Map();
+    const fieldUse = new Map();
     for (const row of rows) {
-      const value = row.querySelector('select')?.value;
-      if (value) used.set(value, (used.get(value) || 0) + 1);
+      const field = selectedField(row);
+      if (field) fieldUse.set(field, (fieldUse.get(field) || 0) + 1);
     }
 
-    let requiredMapped = 0;
-    let optionalMapped = 0;
-    let missing = 0;
+    let reviews = 0;
     let conflicts = 0;
+    let ignored = 0;
+    let recognized = 0;
+    let learned = 0;
+    const confidences = [];
 
     for (const row of rows) {
       const select = row.querySelector('select');
-      const value = select?.value || '';
+      const rawValue = select?.value || '';
+      const field = selectedField(row);
+      const duplicate = Boolean(field && fieldUse.get(field) > 1);
+      const untouchedReview = row.dataset.needsReview === 'true' && row.dataset.userReviewed !== 'true';
+      const pending = rawValue === '__pending';
+      const automaticConflict = untouchedReview && Boolean(row.dataset.autoConflict);
+      const needsReview = pending || untouchedReview || automaticConflict;
       const status = row.querySelector('[data-map-status]');
       const observation = row.querySelector('[data-map-observation]');
-      const preview = row.querySelector('[data-preview-value]');
+      const strategy = row.querySelector('[data-recognition-strategy]');
+      const confidenceText = row.querySelector('[data-confidence-text]');
+      const confidenceBar = row.querySelector('[data-confidence-bar]');
+      const confirmButton = row.querySelector('[data-confirm-row]');
 
-      if (row.dataset.available !== 'true') {
-        status.textContent = 'Indisponível';
-        status.className = 'import-status unavailable';
-        preview.textContent = '—';
-        continue;
-      }
+      let confidence = 0;
+      let strategyName = '—';
+      let isLearned = false;
+      if (field) {
+        recognized++;
+        if (field === row.dataset.originalField) {
+          confidence = Number(row.dataset.confidence || 0);
+          strategyName = row.dataset.strategy || 'Similarity';
+          isLearned = row.dataset.learned === 'true';
+        } else {
+          strategyName = 'Similarity';
+        }
+        confidences.push(confidence);
+        if (isLearned) learned++;
+      } else if (!pending) ignored++;
 
-      const duplicate = value && used.get(value) > 1;
-      const automaticConflict = !value && Boolean(row.dataset.autoConflict);
-      const requiredMissing = row.dataset.required === 'true' && !value && !automaticConflict;
-      const conflict = Boolean(duplicate || automaticConflict);
-
-      row.classList.toggle('error', conflict || requiredMissing);
-      if (value) {
-        if (row.dataset.required === 'true') requiredMapped++;
-        else optionalMapped++;
-      }
-      if (requiredMissing) missing++;
-      if (conflict) conflicts++;
-
+      row.classList.toggle('needs-review', needsReview || duplicate);
+      row.classList.toggle('error', duplicate);
       if (duplicate) {
+        conflicts++;
         status.textContent = 'Conflito';
         status.className = 'import-status conflict';
-        observation.textContent = 'Escolha outra coluna; esta já está associada a outro campo.';
-      } else if (automaticConflict) {
-        status.textContent = 'Conflito';
-        status.className = 'import-status conflict';
-        observation.textContent = `Correspondência ambígua entre: ${row.dataset.autoConflict.split('|').join(', ')}. Escolha manualmente.`;
-      } else if (value) {
-        status.textContent = 'Mapeado';
+        observation.textContent = 'Este campo já está associado a outra coluna.';
+      } else if (needsReview) {
+        reviews++;
+        status.textContent = 'Revisar';
+        status.className = 'import-status pending';
+        observation.textContent = field ? 'Confirme a sugestão do ODRE.' : 'Selecione um campo ou marque como não importar.';
+      } else if (field) {
+        status.textContent = row.dataset.userReviewed === 'true' ? 'Revisado' : 'Reconhecida';
         status.className = 'import-status mapped';
-        observation.textContent = 'Coluna confirmada e será enviada para validação.';
+        observation.textContent = 'Pronta para validação.';
       } else {
-        status.textContent = requiredMissing ? 'Pendente' : 'Não importar';
-        status.className = `import-status ${requiredMissing ? 'pending' : 'unavailable'}`;
-        observation.textContent = requiredMissing
-          ? 'Selecione a coluna da planilha correspondente.'
-          : 'Campo opcional não será importado.';
+        status.textContent = 'Não importar';
+        status.className = 'import-status unavailable';
+        observation.textContent = 'Coluna revisada e ignorada.';
       }
 
-      const sample = data.sample.find(item => String(item[value] ?? '').trim()) || data.sample[0] || {};
-      preview.textContent = value ? (sample[value] ?? '—') : '—';
+      strategy.textContent = strategyName;
+      strategy.className = `recognition-strategy ${strategyName.toLowerCase()}`;
+      confidenceText.textContent = field ? `${Math.round(confidence)}%` : '—';
+      confidenceBar.style.width = `${Math.max(0, Math.min(100, confidence))}%`;
+      if (confirmButton) confirmButton.hidden = !(needsReview && field && !duplicate);
     }
 
-    for (const chip of root.querySelectorAll('[data-column-chip]')) {
-      const count = used.get(chip.dataset.columnChip) || 0;
-      chip.classList.toggle('used', count === 1);
-      chip.classList.toggle('conflict', count > 1);
-    }
+    const missingRequired = data.required.filter(item => !fieldUse.has(item.chave));
+    const requiredMapped = data.required.length - missingRequired.length;
+    const progress = data.required.length ? Math.round(requiredMapped / data.required.length * 100) : 100;
+    const average = confidences.length ? Math.round(confidences.reduce((sum, value) => sum + value, 0) / confidences.length) : 0;
 
-    const required = rows.filter(row => row.dataset.available === 'true' && row.dataset.required === 'true').length;
-    const percent = required ? Math.round(requiredMapped / required * 100) : 100;
-    root.querySelector('[data-progress-text]').textContent = `${percent}%`;
-    root.querySelector('[data-progress-bar]').style.width = `${percent}%`;
-    root.querySelector('[data-required-mapped]').textContent = requiredMapped;
-    root.querySelector('[data-optional-mapped]').textContent = optionalMapped;
-    root.querySelector('[data-unavailable-count]').textContent =
-      rows.filter(row => row.dataset.available !== 'true').length;
-    root.querySelector('[data-unused-count]').textContent = data.headers.length - used.size;
-    root.querySelector('[data-missing-count]').textContent = missing;
-    root.querySelector('[data-conflict-count]').textContent = conflicts;
-    root.querySelector('[data-continue]').disabled = missing > 0 || conflicts > 0;
-
-    return { missing, conflicts };
+    setText('[data-recognition-total]', rows.length);
+    setText('[data-recognized-count]', recognized);
+    setText('[data-learned-count]', learned);
+    setText('[data-review-count]', reviews + conflicts);
+    setText('[data-overall-confidence]', `${average}%`);
+    setText('[data-progress-text]', `${progress}%`);
+    setText('[data-required-mapped]', requiredMapped);
+    setText('[data-missing-count]', reviews);
+    setText('[data-conflict-count]', conflicts);
+    setText('[data-unused-count]', ignored);
+    setText('[data-side-confidence]', `${average}%`);
+    root.querySelector('[data-progress-bar]').style.width = `${progress}%`;
+    root.querySelector('[data-required-message]').textContent = missingRequired.length
+      ? `Ainda faltam: ${missingRequired.map(item => item.nome).join(', ')}.`
+      : 'Todos os campos obrigatórios estão mapeados.';
+    root.querySelector('[data-required-summary]').classList.toggle('complete', missingRequired.length === 0);
+    root.querySelector('[data-continue]').disabled = missingRequired.length > 0 || reviews > 0 || conflicts > 0;
+    syncMappingInputs();
+    return { missingRequired, reviews, conflicts };
   };
 
   for (const row of rows) {
     row.querySelector('select')?.addEventListener('change', () => {
+      row.dataset.userReviewed = 'true';
+      row.dataset.needsReview = 'false';
+      row.dataset.autoConflict = '';
+      refresh();
+    });
+    row.querySelector('[data-confirm-row]')?.addEventListener('click', () => {
+      row.dataset.userReviewed = 'true';
+      row.dataset.needsReview = 'false';
       row.dataset.autoConflict = '';
       refresh();
     });
@@ -134,9 +177,7 @@
     }
     locationSelect.value = '';
     locationSelect.disabled = !warehouse.value || !available;
-    locationSelect.options[0].textContent = available
-      ? 'Selecione o local'
-      : 'Nenhum local ativo neste depósito';
+    locationSelect.options[0].textContent = available ? 'Selecione o local' : 'Nenhum local ativo neste depósito';
   });
 
   root.querySelector('[data-model-select]').addEventListener('change', event => {
@@ -150,10 +191,7 @@
   root.querySelector('[data-confirm-save]').addEventListener('click', async event => {
     event.preventDefault();
     const name = root.querySelector('[data-model-name]').value.trim();
-    if (!name) {
-      showError('Informe um nome para o modelo.');
-      return;
-    }
+    if (!name) return showError('Informe um nome para o modelo.');
     const body = payload();
     body.nome = name;
     body.padrao = root.querySelector('[data-model-default]').checked;
@@ -182,8 +220,7 @@
     event.currentTarget.disabled = true;
     try {
       const response = await fetch(`${root.dataset.deleteModelUrl}/${id}`, {
-        method: 'POST',
-        headers: { RequestVerificationToken: token }
+        method: 'POST', headers: { RequestVerificationToken: token }
       });
       if (!response.ok) throw new Error();
       window.location.href = new URL(root.dataset.mapBaseUrl, window.location.href);
@@ -196,14 +233,15 @@
 
   validationForm.addEventListener('submit', event => {
     const state = refresh();
-    if (state.missing > 0 || state.conflicts > 0) {
+    if (state.missingRequired.length || state.reviews || state.conflicts) {
       event.preventDefault();
-      showError('Mapeie Código, Descrição, Unidade e Preço de venda para continuar.');
-      const firstProblem = rows.find(row => row.classList.contains('error'));
+      showError('Conclua as revisões e mapeie Código, Descrição, Unidade e Preço de venda para continuar.');
+      const firstProblem = rows.find(row => row.classList.contains('needs-review') || row.classList.contains('error'));
       firstProblem?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       firstProblem?.querySelector('select')?.focus({ preventScroll: true });
       return;
     }
+    syncMappingInputs();
     loading.hidden = false;
     root.querySelector('[data-continue]').disabled = true;
   });
