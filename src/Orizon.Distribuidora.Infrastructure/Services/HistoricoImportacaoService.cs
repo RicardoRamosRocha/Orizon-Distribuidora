@@ -157,6 +157,13 @@ public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoSer
         var items = await query.OrderBy(x => x.NumeroLinha).Skip((pagina - 1) * size).Take(size).ToListAsync(cancellationToken);
         var ids = items.Select(x => x.Id).ToList();
         var issues = await dbContext.ImportacaoErros.AsNoTracking().Where(x => x.CompanyId == companyId && ids.Contains(x.ImportacaoItemId!.Value)).ToListAsync(cancellationToken);
+        var allIssues = (await dbContext.ImportacaoErros.AsNoTracking()
+                .Where(x => x.CompanyId == companyId && x.ImportacaoHistoricoId == importacaoId)
+                .OrderBy(x => x.Severidade)
+                .ThenBy(x => x.NumeroLinha)
+                .ToListAsync(cancellationToken))
+            .Select(ToValidationIssue)
+            .ToList();
         var linhas = items.Select(item =>
         {
             var original = JsonSerializer.Deserialize<Dictionary<string, string?>>(item.DadosOriginaisJson) ?? [];
@@ -174,7 +181,7 @@ public sealed partial class HistoricoImportacaoService : IHistoricoImportacaoSer
             historico.ProdutosNovos, historico.ProdutosExistentes, historico.ProdutosAtualizaveis, historico.LinhasDuplicadas, historico.LinhasIgnoradas,
             historico.Status == StatusImportacao.ProntaParaImportar, linhas, historico.FinalizadoEm ?? historico.UpdatedAt ?? historico.CreatedAt,
             opcoes?.QuantidadeUnidadesPreenchidasAutomaticamente ?? 0);
-        return new(result, linhas, pagina, pages, total);
+        return new(result, linhas, pagina, pages, total, allIssues);
     }
 
     private static ErroValidacaoImportacao ToValidationIssue(ImportacaoErro issue) => new(issue.NumeroLinha ?? 0, issue.Coluna ?? string.Empty,

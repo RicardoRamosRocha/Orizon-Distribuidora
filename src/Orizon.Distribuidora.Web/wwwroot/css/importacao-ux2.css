@@ -1,0 +1,20 @@
+.import-problems .import-card-heading{align-items:flex-start}
+.import-problems .import-card-heading h2{font-size:var(--orizon-font-size-lg);margin:.2rem 0}
+.import-problem-totals,.import-problem-labels,.import-quick-actions{display:flex;flex-wrap:wrap;gap:.4rem}
+.import-problem-totals span,.import-problem-labels span{border-radius:var(--orizon-radius-full);font-size:var(--orizon-font-size-xs);font-weight:700;padding:.25rem .6rem}
+.import-problem-totals .blocking,.import-problem.blocking .import-problem-labels span:first-child{background:var(--orizon-color-danger-soft);color:var(--orizon-color-danger)}
+.import-problem-totals .warning,.import-problem.warning .import-problem-labels span:first-child{background:var(--orizon-color-warning-soft);color:var(--orizon-color-warning)}
+.import-problem-labels span:not(:first-child){background:var(--import-surface-muted);color:var(--import-muted)}
+.import-problem-list{display:grid;gap:var(--orizon-space-2)}
+.import-problem{background:var(--import-surface-muted);border:1px solid var(--import-border);border-inline-start:.3rem solid;border-radius:var(--orizon-radius-md);padding:var(--orizon-space-3)}
+.import-problem.blocking{border-inline-start-color:var(--orizon-color-danger)}
+.import-problem.warning{border-inline-start-color:var(--orizon-color-warning)}
+.import-problem>header,.import-problem>footer{align-items:flex-start;display:flex;gap:var(--orizon-space-2);justify-content:space-between}
+.import-problem h3{font-size:var(--orizon-font-size-md);margin:.45rem 0 .15rem}
+.import-problem header p,.import-problem footer small{color:var(--import-muted);margin:0}
+.import-problem header>strong{font-size:var(--orizon-font-size-sm);white-space:nowrap}
+.import-problem dl{display:grid;gap:.45rem;margin:var(--orizon-space-2) 0}
+.import-problem dl>div{display:grid;gap:var(--orizon-space-2);grid-template-columns:9rem 1fr}
+.import-problem dt{color:var(--import-muted);font-size:var(--orizon-font-size-xs);font-weight:700;text-transform:uppercase}
+.import-problem dd{margin:0}
+@media(max-width:720px){.import-problem>header,.import-problem>footer{align-items:stretch;flex-direction:column}.import-problem header>strong{white-space:normal}.import-problem dl>div{gap:.1rem;grid-template-columns:1fr}}

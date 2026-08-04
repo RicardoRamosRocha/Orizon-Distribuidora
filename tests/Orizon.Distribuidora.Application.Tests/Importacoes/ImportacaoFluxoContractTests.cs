@@ -125,7 +125,8 @@ public sealed class ImportacaoFluxoContractTests
         Assert.Contains("Baixar relatório de erros", view);
         Assert.Contains("Model.Resultado.QuantidadeValida == 0", view);
         Assert.Contains("Coluna original", view);
-        Assert.Contains("Correção esperada", view);
+        Assert.Contains("Como resolver", view);
+        Assert.Contains("_ProblemasValidacao", view);
     }
 
     private static string FindRepositoryRoot()

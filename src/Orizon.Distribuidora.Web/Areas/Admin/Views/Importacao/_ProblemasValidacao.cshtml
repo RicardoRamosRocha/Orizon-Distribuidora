@@ -1,0 +1,80 @@
+@model ImportacaoValidacaoViewModel
+@using Orizon.Distribuidora.Domain.Enums
+
+@if (Model.Problemas.Count > 0)
+{
+    var bloqueios = Model.Problemas.Count(x => x.Severidade == SeveridadeValidacao.Erro);
+    var avisos = Model.Problemas.Count - bloqueios;
+
+    <section class="import-card import-problems" aria-labelledby="validation-problems-title">
+        <div class="import-card-heading">
+            <div>
+                <span class="import-eyebrow">Como resolver</span>
+                <h2 id="validation-problems-title">O que precisa da sua atenção</h2>
+                <p>Ocorrências iguais foram reunidas. Resolva primeiro os bloqueios e valide novamente.</p>
+            </div>
+            <div class="import-problem-totals" aria-label="Resumo dos problemas">
+                @if (bloqueios > 0)
+                {
+                    <span class="blocking">@bloqueios bloqueio(s)</span>
+                }
+                @if (avisos > 0)
+                {
+                    <span class="warning">@avisos aviso(s)</span>
+                }
+            </div>
+        </div>
+
+        <div class="import-problem-list">
+            @foreach (var problema in Model.Problemas)
+            {
+                var categoria = problema.Categoria switch
+                {
+                    CategoriaProblemaValidacao.Preco => "Preço",
+                    CategoriaProblemaValidacao.RegraDeNegocio => "Regra de negócio",
+                    _ => problema.Categoria.ToString()
+                };
+                <article class="import-problem @(problema.Bloqueante ? "blocking" : "warning")">
+                    <header>
+                        <div>
+                            <div class="import-problem-labels">
+                                <span>@(problema.Bloqueante ? "Bloqueio" : "Aviso")</span>
+                                <span>@categoria</span>
+                            </div>
+                            <h3>@problema.Titulo</h3>
+                            <p>@problema.Descricao</p>
+                        </div>
+                        <strong>@problema.QuantidadeProdutosAfetados produto(s) afetado(s)</strong>
+                    </header>
+                    <dl>
+                        <div><dt>Por que aconteceu</dt><dd>@problema.Causa</dd></div>
+                        <div><dt>Como resolver</dt><dd>@problema.Resolucao</dd></div>
+                        <div><dt>Ação sugerida</dt><dd>@problema.AcaoSugerida</dd></div>
+                    </dl>
+                    <footer>
+                        <small>
+                            Linhas: @string.Join(", ", problema.LinhasAfetadas.Take(8))
+                            @if (problema.LinhasAfetadas.Count > 8) { <text> e mais @(problema.LinhasAfetadas.Count - 8)</text> }
+                        </small>
+                        @if (problema.AcoesRapidas.Count > 0)
+                        {
+                            <div class="import-quick-actions">
+                                @foreach (var acao in problema.AcoesRapidas)
+                                {
+                                    <a class="import-button @(acao.CriarNovo ? "primary" : "")"
+                                       asp-area="Admin"
+                                       asp-controller="BasicRegistrations"
+                                       asp-action="@(acao.CriarNovo ? "Create" : "Index")"
+                                       asp-route-moduleKey="@acao.ModuloCadastro"
+                                       target="_blank" rel="noopener">
+                                        @acao.Rotulo
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </footer>
+                </article>
+            }
+        </div>
+    </section>
+}

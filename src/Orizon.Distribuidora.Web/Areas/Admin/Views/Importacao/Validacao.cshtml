@@ -8,25 +8,9 @@
     string ColunaOriginal(string campo) =>
         Model.Mapeamentos.TryGetValue(campo, out var coluna) ? coluna : "Não mapeada";
 
-    string CorrecaoEsperada(ErroValidacaoImportacao issue) => issue.Codigo switch
-    {
-        "IMP_CAMPO_OBRIGATORIO" => $"Informe um valor na coluna “{ColunaOriginal(issue.Campo)}”.",
-        "IMP_CADASTRO_INEXISTENTE" when issue.Campo == "unidade" =>
-            "Use o código, a sigla ou o nome exato de uma unidade ativa já cadastrada.",
-        "IMP_CADASTRO_INEXISTENTE" => "Use um valor que corresponda a um cadastro ativo da empresa.",
-        "IMP_CADASTRO_AMBIGUO" => "Informe um código ou documento que identifique um único cadastro.",
-        "IMP_NUMERO_INVALIDO" => "Informe um número válido, por exemplo 10,50.",
-        "IMP_VALOR_NEGATIVO" => "Informe zero ou um valor positivo.",
-        "IMP_DUPLICIDADE_CODIGO_PLANILHA" => "Mantenha apenas uma linha para cada código de produto.",
-        "IMP_DUPLICIDADE_BARRAS_PLANILHA" => "Mantenha apenas uma linha para cada código de barras.",
-        "IMP_CODIGO_BARRAS_INVALIDO" => "Informe somente dígitos, com no máximo 32 caracteres.",
-        "IMP_NCM_INVALIDO" => "Informe exatamente oito dígitos.",
-        "IMP_PARCEIRO_OBRIGATORIO" => "Informe o CNPJ de um parceiro ativo para produtos de terceiros.",
-        "IMP_LOCAL_ESTOQUE_OBRIGATORIO" => "Volte ao mapeamento e selecione depósito e local interno.",
-        _ => "Corrija o valor na planilha ou ajuste a coluna escolhida no mapeamento."
-    };
 }
 @section Styles {
+    <link rel='stylesheet' href='~/css/importacao-ux2.css' asp-append-version='true' />
     <link rel="stylesheet" href="~/css/importacao-premium.css" asp-append-version="true" />
 }
 
@@ -67,6 +51,8 @@
             <article><span>@card.Item1</span><strong>@card.Item2</strong></article>
         }
     </section>
+
+    <partial name='_ProblemasValidacao' model='Model' />
 
     @if (Model.Resultado.QuantidadeValida == 0)
     {
@@ -170,13 +156,14 @@
                                             <div class="import-issue-list">
                                                 @foreach (var issue in line.Erros.Concat(line.Avisos))
                                                 {
+                                                    var problema = ProblemaValidacaoPresenter.Apresentar(issue, Model.Mapeamentos);
                                                     <article>
                                                         <dl>
-                                                            <div><dt>Campo</dt><dd>@issue.Campo</dd></div>
+                                                            <div><dt>Campo</dt><dd>@problema.CampoExibicao</dd></div>
                                                             <div><dt>Coluna original</dt><dd>@ColunaOriginal(issue.Campo)</dd></div>
                                                             <div><dt>Valor recebido</dt><dd>@(string.IsNullOrWhiteSpace(issue.ValorOriginal) ? "Vazio" : issue.ValorOriginal)</dd></div>
-                                                            <div><dt>Motivo</dt><dd>@issue.Mensagem</dd></div>
-                                                            <div><dt>Correção esperada</dt><dd>@CorrecaoEsperada(issue)</dd></div>
+                                                            <div><dt>Por que aconteceu</dt><dd>@problema.Causa</dd></div>
+                                                            <div><dt>Como resolver</dt><dd>@problema.Resolucao</dd></div>
                                                         </dl>
                                                     </article>
                                                 }

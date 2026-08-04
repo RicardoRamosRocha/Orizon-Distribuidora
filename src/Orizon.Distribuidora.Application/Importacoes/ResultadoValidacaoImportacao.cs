@@ -35,7 +35,8 @@ public sealed record ResultadoValidacaoImportacao(int TotalLinhas, int Quantidad
 }
 
 public sealed record PaginaValidacaoImportacao(ResultadoValidacaoImportacao Resultado,
-    IReadOnlyList<ResultadoValidacaoLinha> Linhas, int Pagina, int TotalPaginas, int TotalFiltrado);
+    IReadOnlyList<ResultadoValidacaoLinha> Linhas, int Pagina, int TotalPaginas, int TotalFiltrado,
+    IReadOnlyList<ErroValidacaoImportacao>? Ocorrencias = null);
 
 public sealed record ReferenciaImportacao(Guid Id, string? Codigo, string Nome, string? Documento = null, Guid? ParentId = null);
 

@@ -403,6 +403,7 @@ public sealed class ImportacaoController : Controller
         var options = string.IsNullOrWhiteSpace(history.OpcoesValidacaoJson)
             ? null
             : System.Text.Json.JsonSerializer.Deserialize<OpcoesValidacaoImportacao>(history.OpcoesValidacaoJson);
+        var mapeamentos = options?.Mapeamentos ?? new Dictionary<string,string>();
         return View("Validacao",new ImportacaoValidacaoViewModel
         {
             ImportacaoId=id,
@@ -411,12 +412,13 @@ public sealed class ImportacaoController : Controller
             AbaSelecionada=options?.AbaSelecionada,
             Resultado=page.Resultado,
             Linhas=page.Linhas,
+            Problemas=ProblemaValidacaoPresenter.Agrupar(page.Ocorrencias ?? [],mapeamentos),
             Pagina=page.Pagina,
             TotalPaginas=page.TotalPaginas,
             Filtro=filtro,
             Busca=busca,
             Request=new(){ImportacaoId=id},
-            Mapeamentos=options?.Mapeamentos ?? new Dictionary<string,string>()
+            Mapeamentos=mapeamentos
         });
     }
 

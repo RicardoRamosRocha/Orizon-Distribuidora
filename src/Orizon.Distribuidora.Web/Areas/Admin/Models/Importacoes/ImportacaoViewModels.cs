@@ -168,6 +168,7 @@ public sealed class ImportacaoValidacaoViewModel
     public string? AbaSelecionada { get; set; }
     public ResultadoValidacaoImportacao Resultado { get; set; } = ResultadoValidacaoImportacao.Sucesso;
     public IReadOnlyList<ResultadoValidacaoLinha> Linhas { get; set; } = [];
+    public IReadOnlyList<ProblemaValidacaoViewModel> Problemas { get; set; } = [];
     public int Pagina { get; set; }
     public int TotalPaginas { get; set; }
     public string? Filtro { get; set; }
